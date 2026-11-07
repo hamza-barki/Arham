@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Users,
   Search,
@@ -36,12 +36,12 @@ export default function AdminCustomersPage() {
   const [exporting, setExporting] = useState(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async (searchQuery = search, consent = consentOnly) => {
     setLoading(true);
     try {
       const res = await getAdminCustomersAction({
-        search,
-        consentOnly,
+        search: searchQuery,
+        consentOnly: consent,
       });
       if (res.success) {
         setCustomers(res.customers);
@@ -51,10 +51,11 @@ export default function AdminCustomersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, consentOnly]);
 
   useEffect(() => {
-    fetchCustomers();
+    fetchCustomers(search, consentOnly);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consentOnly]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -206,7 +207,7 @@ export default function AdminCustomersPage() {
           </button>
           <button
             type="button"
-            onClick={fetchCustomers}
+            onClick={() => fetchCustomers()}
             title="Refresh Customers"
             className="p-2.5 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 transition shrink-0"
           >

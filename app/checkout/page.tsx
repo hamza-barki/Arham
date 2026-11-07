@@ -33,7 +33,7 @@ import {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, subtotal, shippingFee, total, clearCart } = useCart();
+  const { items, isHydrated, subtotal, shippingFee, total, clearCart } = useCart();
   const { user, profile } = useAuth();
 
   const [serverError, setServerError] = useState<string | null>(null);
@@ -209,6 +209,17 @@ export default function CheckoutPage() {
       if (found) applyAddress(found);
     }
   };
+
+  // Loading from client storage
+  if (!isHydrated) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-20 text-center animate-pulse">
+        <div className="w-12 h-12 bg-neutral-200 rounded-full mx-auto mb-4" />
+        <div className="h-6 w-48 bg-neutral-200 rounded mx-auto mb-2" />
+        <div className="h-4 w-64 bg-neutral-200 rounded mx-auto" />
+      </div>
+    );
+  }
 
   // Empty cart edge case
   if (items.length === 0) {

@@ -29,36 +29,27 @@ export function formatPKR(amount: number): string {
 export function normalizePakistaniPhone(phone: string): string | null {
   if (!phone) return null;
 
-  // Strip whitespace, dashes, and parentheses (keep digits and leading plus)
-  let cleaned = phone.trim().replace(/[\s\-()+]/g, '');
+  // Extract all digits
+  let digits = phone.replace(/\D/g, '');
 
-  // Remove leading '+' if present after stripping
-  if (phone.trim().startsWith('+')) {
-    cleaned = phone.trim().replace(/[\s\-()+]/g, '');
-  } else {
-    cleaned = phone.trim().replace(/[\s\-()]/g, '');
+  // Strip international prefix (0092 or 92)
+  if (digits.startsWith('0092')) {
+    digits = digits.slice(4);
+  } else if (digits.startsWith('92')) {
+    digits = digits.slice(2);
   }
 
-  // Normalise international prefixes → leading zero
-  if (cleaned.startsWith('+92')) {
-    cleaned = '0' + cleaned.slice(3);
-  } else if (cleaned.startsWith('0092')) {
-    cleaned = '0' + cleaned.slice(4);
-  } else if (cleaned.startsWith('92') && cleaned.length === 12) {
-    // 92XXXXXXXXXX  (12 digits, no leading zero)
-    cleaned = '0' + cleaned.slice(2);
-  } else if (/^3\d{9}$/.test(cleaned)) {
-    // 3XXXXXXXXX  (10 digits, missing leading zero)
-    cleaned = '0' + cleaned;
+  // Strip leading 0 if present to get raw 10-digit mobile number
+  if (digits.startsWith('0')) {
+    digits = digits.slice(1);
   }
 
-  // Broad Pakistani mobile regex: 03 followed by exactly 9 more digits.
-  // Deliberately avoids hard-coding operator ranges so new PTA allocations work.
-  if (!/^03\d{9}$/.test(cleaned)) {
-    return null;
+  // Pakistani mobile numbers must start with 3 and have 10 digits in total (3XXXXXXXXX)
+  if (/^3\d{9}$/.test(digits)) {
+    return '0' + digits;
   }
 
-  return cleaned;
+  return null;
 }
 
 /**

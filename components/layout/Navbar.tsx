@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -17,6 +17,11 @@ export function Navbar() {
   const { user, profile } = useAuth();
   const { isStaff } = useAdminRole();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Hide on admin console routes
   if (pathname?.startsWith('/admin')) {
@@ -148,7 +153,7 @@ export function Navbar() {
           <div className="flex items-center gap-2 sm:gap-4">
             
             {/* Admin Console Shortcut (visible only to signed-in staff/admin) */}
-            {isStaff && (
+            {mounted && isStaff && (
               <Link
                 href="/admin"
                 className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold bg-neutral-900 text-amber-300 hover:bg-neutral-800 rounded-xl transition shadow-xs border border-neutral-700"
@@ -167,13 +172,13 @@ export function Navbar() {
 
             {/* User Account Button */}
             <Link
-              href={user ? '/account' : '/login'}
+              href={mounted && user ? '/account' : '/login'}
               className="p-2 text-neutral-800 hover:text-emerald-950 hover:bg-neutral-100 rounded-xl transition-colors focus:outline-none flex items-center gap-1.5 text-xs font-semibold"
-              title={user ? 'My Account' : 'Sign In'}
+              title={mounted && user ? 'My Account' : 'Sign In'}
             >
               <User className="w-5 h-5 text-neutral-700" />
               <span className="hidden md:inline">
-                {user ? (profile?.full_name ? profile.full_name.split(' ')[0] : 'Account') : 'Sign In'}
+                {mounted && user ? (profile?.full_name ? profile.full_name.split(' ')[0] : 'Account') : 'Sign In'}
               </span>
             </Link>
 
@@ -185,7 +190,7 @@ export function Navbar() {
               aria-label="View Shopping Bag"
             >
               <ShoppingBag className="w-6 h-6" />
-              {totalItemsCount > 0 && (
+              {mounted && totalItemsCount > 0 && (
                 <span className="absolute top-1 right-1 flex items-center justify-center min-w-5 h-5 px-1 text-[11px] font-bold text-white bg-emerald-800 rounded-full border-2 border-white shadow-sm animate-in zoom-in-50 duration-200">
                   {totalItemsCount}
                 </span>
@@ -226,7 +231,7 @@ export function Navbar() {
 
           {/* Mobile Account & Admin Links */}
           <div className="pt-3 border-t border-neutral-100 space-y-2">
-            {isStaff && (
+            {mounted && isStaff && (
               <Link
                 href="/admin"
                 onClick={() => setMobileMenuOpen(false)}
@@ -243,12 +248,12 @@ export function Navbar() {
             )}
 
             <Link
-              href={user ? '/account' : '/login'}
+              href={mounted && user ? '/account' : '/login'}
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center gap-2 text-sm font-semibold text-emerald-950 py-1"
             >
               <User className="w-4 h-4 text-emerald-900" />
-              {user ? `Account (${profile?.full_name || 'My Profile'})` : 'Sign In / Register'}
+              {mounted && user ? `Account (${profile?.full_name || 'My Profile'})` : 'Sign In / Register'}
             </Link>
           </div>
 

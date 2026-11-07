@@ -5,6 +5,7 @@ import { CartItem } from '@/types';
 
 interface CartContextType {
   items: CartItem[];
+  isHydrated: boolean;
   addItem: (item: Omit<CartItem, 'id'>) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -124,6 +125,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     <CartContext.Provider
       value={{
         items,
+        isHydrated,
         addItem,
         removeItem,
         updateQuantity,

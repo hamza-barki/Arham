@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   History,
   Search,
@@ -30,7 +30,7 @@ export default function AdminAuditLogPage() {
   const [selectedAction, setSelectedAction] = useState('all');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getAuditLogsAction({
@@ -49,11 +49,11 @@ export default function AdminAuditLogPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedEntity, selectedAction]);
 
   useEffect(() => {
     fetchLogs();
-  }, [selectedEntity, selectedAction]);
+  }, [fetchLogs]);
 
   const toggleExpand = (id: string) => {
     const next = new Set(expandedIds);

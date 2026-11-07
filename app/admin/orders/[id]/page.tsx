@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -56,7 +56,7 @@ export default function AdminOrderDetailPage() {
   // Copy feedback
   const [copiedMarkaz, setCopiedMarkaz] = useState(false);
 
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     if (!orderId) return;
     setLoading(true);
     const res = await getAdminOrderDetailAction(orderId);
@@ -73,11 +73,11 @@ export default function AdminOrderDetailPage() {
       setError(res.error || 'Order not found');
     }
     setLoading(false);
-  };
+  }, [orderId]);
 
   useEffect(() => {
     fetchOrder();
-  }, [orderId]);
+  }, [fetchOrder]);
 
   // Handle status update
   const handleStatusSubmit = async (e: React.FormEvent) => {

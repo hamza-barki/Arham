@@ -187,6 +187,7 @@ export function Footer() {
                 <Link href="/contact" className="hover:text-amber-400 transition-colors">
                   Contact & Store Locations
                 </Link>
+              </li>
             </ul>
           </div>
         </div>

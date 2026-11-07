@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -37,14 +37,14 @@ export default function AdminProductsPage() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [lowStockOnly, setLowStockOnly] = useState(false);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async (searchQuery = search, cat = selectedCategory, st = selectedStatus, low = lowStockOnly) => {
     setLoading(true);
     try {
       const res = await getAdminProductsAction({
-        search,
-        categoryId: selectedCategory,
-        status: selectedStatus,
-        lowStockOnly,
+        search: searchQuery,
+        categoryId: cat,
+        status: st,
+        lowStockOnly: low,
       });
       if (res.success) {
         setProducts(res.products);
@@ -54,10 +54,11 @@ export default function AdminProductsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, selectedCategory, selectedStatus, lowStockOnly]);
 
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(search, selectedCategory, selectedStatus, lowStockOnly);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory, selectedStatus, lowStockOnly]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -179,7 +180,7 @@ export default function AdminProductsPage() {
           </button>
           <button
             type="button"
-            onClick={fetchProducts}
+            onClick={() => fetchProducts()}
             title="Refresh Products"
             className="p-2.5 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 transition shrink-0"
           >

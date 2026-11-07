@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   LifeBuoy,
@@ -40,12 +40,12 @@ export default function AdminSupportInboxPage() {
   const [replyError, setReplyError] = useState<string | null>(null);
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async (statusTab = activeTab, searchQuery = search) => {
     setLoading(true);
     try {
       const res = await getSupportMessagesAction({
-        status: activeTab,
-        search,
+        status: statusTab,
+        search: searchQuery,
       });
       if (res.success) {
         setMessages(res.messages);
@@ -56,10 +56,11 @@ export default function AdminSupportInboxPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, search]);
 
   useEffect(() => {
-    fetchMessages();
+    fetchMessages(activeTab, search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -143,7 +144,7 @@ export default function AdminSupportInboxPage() {
         </div>
 
         <button
-          onClick={fetchMessages}
+          onClick={() => fetchMessages()}
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 font-bold text-xs shadow-xs transition shrink-0"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -434,7 +435,7 @@ export default function AdminSupportInboxPage() {
             {/* Original message reference */}
             <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-600">
               <span className="font-bold text-neutral-700 block mb-0.5">Customer asked:</span>
-              <p className="italic line-clamp-3">"{replyModalTarget.message}"</p>
+              <p className="italic line-clamp-3">&quot;{replyModalTarget.message}&quot;</p>
             </div>
 
             <form onSubmit={handleSendReply} className="space-y-4">

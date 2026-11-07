@@ -12,6 +12,7 @@ import cloudinaryLoader from '@/lib/image-loader';
 export default function CartPage() {
   const {
     items,
+    isHydrated,
     removeItem,
     updateQuantity,
     clearCart,
@@ -23,6 +24,16 @@ export default function CartPage() {
   } = useCart();
 
   const progressPercent = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
+
+  if (!isHydrated) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center animate-pulse">
+        <div className="w-20 h-20 rounded-full bg-neutral-100 mx-auto mb-6" />
+        <div className="h-8 w-64 bg-neutral-100 rounded mx-auto mb-3" />
+        <div className="h-4 w-96 bg-neutral-100 rounded mx-auto" />
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (

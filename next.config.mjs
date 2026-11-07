@@ -27,12 +27,13 @@ const cspDirectives = [
   // Fonts: self + Google Fonts CDN
   "font-src 'self' fonts.gstatic.com",
 
-  // Images: self + Cloudinary + Meta pixel beacon + data URIs
+  // Images: self + Cloudinary + Meta pixel beacon + data URIs + OpenStreetMap
   "img-src 'self' data: blob: " +
     "res.cloudinary.com " +
     "www.facebook.com " +
     "static.xx.fbcdn.net " +
-    "images.unsplash.com",
+    "images.unsplash.com " +
+    "*.tile.openstreetmap.org tile.openstreetmap.org",
 
   // XHR / fetch / WebSocket: self + Supabase + Cloudinary upload + Meta + TikTok
   "connect-src 'self' " +
@@ -80,7 +81,7 @@ const securityHeaders = [
   },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=()',
+    value: 'camera=(), microphone=(), geolocation=(self)',
   },
   {
     // Report-Only: logs violations without blocking — switch to

@@ -468,18 +468,36 @@ export default function ImportMarkazPage() {
     setResult(null);
 
     try {
-      const payload = parsedRows.map((r) => ({
-        name: r.name,
-        supplierSku: r.supplierSku,
-        costPrice: r.costPrice,
-        sellingPrice: r.sellingPrice,
-        categoryId: r.categoryId,
-        sizes: r.sizes,
-        colors: r.colors,
-        description: r.description,
-        imageUrl: r.imageUrl,
-        images: r.images,
-      }));
+      // IMPORTANT: Strip base64 data URLs from the payload before sending to the Server Action.
+      // Next.js Server Actions have a ~4MB body limit — base64 images from ZIP files
+      // can easily exceed this. The server action handles Cloudinary upload internally.
+      const MAX_INLINE_SIZE = 200_000; // ~200KB base64 safe to pass inline
+
+      const payload = parsedRows.map((r) => {
+        // For base64 images: only pass small ones inline; larger ones are skipped
+        // (server will upload to Cloudinary if Cloudinary is configured)
+        const safeImageUrl =
+          r.imageUrl && r.imageUrl.startsWith('data:') && r.imageUrl.length > MAX_INLINE_SIZE
+            ? undefined          // too large — server action will skip upload
+            : r.imageUrl;
+
+        const safeImages = (r.images || [])
+          .filter((img) => !img.startsWith('data:') || img.length <= MAX_INLINE_SIZE)
+          .slice(0, 5); // max 5 images per product to stay within limits
+
+        return {
+          name: r.name,
+          supplierSku: r.supplierSku,
+          costPrice: r.costPrice,
+          sellingPrice: r.sellingPrice,
+          categoryId: r.categoryId,
+          sizes: r.sizes,
+          colors: r.colors,
+          description: r.description,
+          imageUrl: safeImageUrl,
+          images: safeImages.length > 0 ? safeImages : undefined,
+        };
+      });
 
       const res = await batchImportMarkazAction(payload);
       setResult(res);
@@ -487,7 +505,7 @@ export default function ImportMarkazPage() {
       setResult({
         success: false,
         inserted: 0,
-        errors: [err.message || 'Import failed'],
+        errors: [err.message || 'Import failed — please try again.'],
       });
     } finally {
       setImporting(false);

@@ -4,6 +4,7 @@ import { getServiceRoleClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { requireRole, recordAuditLog } from '@/lib/admin-auth';
 import { INITIAL_PRODUCTS, CATEGORIES } from '@/lib/constants';
+import { uploadProductImage, isCloudinaryConfigured } from '@/lib/cloudinary';
 
 export interface AdminProductFormInput {
   id?: string;
@@ -417,7 +418,9 @@ export async function saveProductAction(input: AdminProductFormInput): Promise<{
 }
 
 /**
- * Batch import products parsed from Markaz Excel / CSV or Media ZIP
+ * Batch import products parsed from Markaz Excel / CSV or Media ZIP.
+ * Handles Cloudinary upload of base64 images server-side so the client
+ * never needs to send large payloads through Server Action body limits.
  */
 export async function batchImportMarkazAction(
   products: Array<{
@@ -430,6 +433,7 @@ export async function batchImportMarkazAction(
     description?: string;
     sizes?: string;
     colors?: string;
+    // These may be base64 data URLs from ZIP extraction
     imageUrl?: string;
     images?: string[];
   }>
@@ -459,6 +463,8 @@ export async function batchImportMarkazAction(
       imageUrl?: string;
     }> = [];
 
+    const cloudinaryEnabled = isCloudinaryConfigured();
+
     for (const item of products) {
       try {
         if (!item.name || !item.sellingPrice) {
@@ -486,29 +492,66 @@ export async function batchImportMarkazAction(
           });
         }
 
-        const imagesList =
-          item.images && item.images.length > 0
-            ? item.images.map((url, i) => ({
-                url,
-                position: i,
-                colorTag: i === 0 ? 'Primary' : null,
-                isSizeChart: false,
-              }))
-            : item.imageUrl
-            ? [
-                {
-                  url: item.imageUrl,
-                  position: 0,
-                  colorTag: 'Primary',
-                  isSizeChart: false,
-                },
-              ]
-            : [];
+        // ---------------------------------------------------------------
+        // Upload images to Cloudinary (server-side, handles base64 URLs)
+        // Falls back to storing the URL as-is if Cloudinary not configured
+        // ---------------------------------------------------------------
+        const rawImages = (item.images && item.images.length > 0)
+          ? item.images
+          : item.imageUrl
+          ? [item.imageUrl]
+          : [];
+
+        const imagesList: Array<{
+          url: string;
+          publicId?: string;
+          position: number;
+          colorTag: string | null;
+          isSizeChart: boolean;
+        }> = [];
+
+        let primaryImageUrl: string | undefined;
+
+        for (let i = 0; i < rawImages.length; i++) {
+          const rawUrl = rawImages[i];
+          if (!rawUrl) continue;
+
+          let finalUrl = rawUrl;
+          let publicId: string | undefined;
+
+          // Upload base64 or remote image to Cloudinary if available
+          if (cloudinaryEnabled) {
+            try {
+              const skuSlug = (item.supplierSku || 'mkz')
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '-');
+              const uploadResult = await uploadProductImage(
+                rawUrl,
+                `ecommerce/products/markaz/${skuSlug}`,
+                { public_id: `${skuSlug}-${i + 1}-${Date.now()}` }
+              );
+              finalUrl = uploadResult.secureUrl;
+              publicId = uploadResult.publicId;
+            } catch (uploadErr: any) {
+              // Upload failed — keep original URL (base64 or remote)
+              console.warn(`[Markaz Import] Cloudinary upload failed for image ${i}: ${uploadErr.message}`);
+            }
+          }
+
+          if (i === 0) primaryImageUrl = finalUrl;
+
+          imagesList.push({
+            url: finalUrl,
+            publicId,
+            position: i,
+            colorTag: i === 0 ? 'Primary' : null,
+            isSizeChart: false,
+          });
+        }
 
         // Match category
         let targetCategoryId = item.categoryId;
         if (!targetCategoryId || !CATEGORIES.some((c) => c.id === targetCategoryId)) {
-          // Try to match by category name if provided
           if (item.category) {
             const found = CATEGORIES.find(
               (c) => c.name.toLowerCase() === item.category!.toLowerCase()
@@ -545,7 +588,7 @@ export async function batchImportMarkazAction(
             sku: item.supplierSku || '',
             price: item.sellingPrice,
             costPrice: item.costPrice || 0,
-            imageUrl: item.imageUrl || (item.images && item.images[0]) || '',
+            imageUrl: primaryImageUrl,
           });
         } else {
           errors.push(`"${item.name}": ${res.error || 'Failed to save'}`);

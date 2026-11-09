@@ -1300,10 +1300,14 @@ export default function ImportMarkazPage() {
               {/* Photos Gallery from ZIP */}
               {editForm.images && editForm.images.length > 0 && (
                 <div>
-                  <label className="block font-bold text-neutral-800 mb-1.5">
-                    Extracted Photos ({editForm.images.length}) • Click thumbnail to choose primary
-                    image
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-bold text-neutral-800">
+                      Extracted Photos ({editForm.images.length})
+                    </label>
+                    <span className="text-[11px] text-neutral-500 font-medium">
+                      Click to set primary • Hover & click <Trash2 className="w-3 h-3 inline text-rose-600" /> to remove
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-2.5">
                     {editForm.images.map((imgUrl, i) => {
                       const isPrimary = editForm.imageUrl === imgUrl;
@@ -1311,7 +1315,7 @@ export default function ImportMarkazPage() {
                         <div
                           key={i}
                           onClick={() => setEditForm({ ...editForm, imageUrl: imgUrl })}
-                          className={`relative w-16 h-16 rounded-xl overflow-hidden border-2 cursor-pointer transition ${
+                          className={`group relative w-16 h-16 rounded-xl overflow-hidden border-2 cursor-pointer transition ${
                             isPrimary
                               ? 'border-emerald-600 ring-2 ring-emerald-500/50 scale-105'
                               : 'border-neutral-200 hover:border-neutral-400'
@@ -1323,10 +1327,32 @@ export default function ImportMarkazPage() {
                             fill
                             unoptimized={imgUrl.startsWith('data:')}
                             loader={cloudinaryLoader}
-                            className="object-cover"
+                            className="object-cover group-hover:opacity-90 transition"
                           />
+
+                          {/* Delete Button on Hover */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newImages = editForm.images!.filter((_, imgIdx) => imgIdx !== i);
+                              const newPrimary =
+                                editForm.imageUrl === imgUrl ? newImages[0] || undefined : editForm.imageUrl;
+                              setEditForm({
+                                ...editForm,
+                                images: newImages,
+                                imageUrl: newPrimary,
+                              });
+                            }}
+                            className="absolute top-1 left-1 w-5 h-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm z-10 cursor-pointer"
+                            title="Delete this photo"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+
+                          {/* Primary Checkmark Indicator */}
                           {isPrimary && (
-                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
                               <Check className="w-2.5 h-2.5 stroke-[3]" />
                             </div>
                           )}

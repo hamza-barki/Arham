@@ -19,15 +19,28 @@ import {
   Archive,
   RefreshCw,
   Sparkles,
-  ArrowUpDown,
+  Trash2,
+  Copy,
+  CheckSquare,
+  Square,
+  Loader2,
+  X,
+  AlertCircle,
 } from 'lucide-react';
-import { getAdminProductsAction } from '@/app/actions/admin-products';
+import {
+  getAdminProductsAction,
+  deleteProductAction,
+  toggleProductStatusAction,
+  duplicateProductAction,
+  bulkDeleteProductsAction,
+  bulkUpdateStatusAction,
+} from '@/app/actions/admin-products';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { CATEGORIES } from '@/lib/constants';
 import cloudinaryLoader from '@/lib/image-loader';
 
 export default function AdminProductsPage() {
-  const { role, isStaff } = useAdminRole();
+  const { role } = useAdminRole();
   const isManagerOrAbove = role === 'manager' || role === 'admin' || role === 'super_admin';
 
   const [products, setProducts] = useState<any[]>([]);
@@ -37,24 +50,49 @@ export default function AdminProductsPage() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [lowStockOnly, setLowStockOnly] = useState(false);
 
-  const fetchProducts = useCallback(async (searchQuery = search, cat = selectedCategory, st = selectedStatus, low = lowStockOnly) => {
-    setLoading(true);
-    try {
-      const res = await getAdminProductsAction({
-        search: searchQuery,
-        categoryId: cat,
-        status: st,
-        lowStockOnly: low,
-      });
-      if (res.success) {
-        setProducts(res.products);
+  // Selection & Actions
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [actionLoading, setActionLoading] = useState<{ [id: string]: boolean }>({});
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; product: any | null }>({
+    isOpen: false,
+    product: null,
+  });
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => {
+      setNotification(null);
+    }, 4500);
+  };
+
+  const fetchProducts = useCallback(
+    async (
+      searchQuery = search,
+      cat = selectedCategory,
+      st = selectedStatus,
+      low = lowStockOnly
+    ) => {
+      setLoading(true);
+      try {
+        const res = await getAdminProductsAction({
+          search: searchQuery,
+          categoryId: cat,
+          status: st,
+          lowStockOnly: low,
+        });
+        if (res.success) {
+          setProducts(res.products);
+        }
+      } catch (err) {
+        console.error('Failed to load products', err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to load products', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, selectedCategory, selectedStatus, lowStockOnly]);
+    },
+    [search, selectedCategory, selectedStatus, lowStockOnly]
+  );
 
   useEffect(() => {
     fetchProducts(search, selectedCategory, selectedStatus, lowStockOnly);
@@ -66,12 +104,174 @@ export default function AdminProductsPage() {
     fetchProducts();
   };
 
+  // Selection toggles
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === products.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(products.map((p) => p.id));
+    }
+  };
+
+  // Toggle single product status (active <-> draft)
+  const handleToggleStatus = async (product: any) => {
+    if (!isManagerOrAbove) return;
+    const targetStatus = product.status === 'active' ? 'draft' : 'active';
+    setActionLoading((prev) => ({ ...prev, [product.id]: true }));
+
+    try {
+      const res = await toggleProductStatusAction(product.id, targetStatus);
+      if (res.success) {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === product.id ? { ...p, status: res.status } : p))
+        );
+        showNotification(
+          'success',
+          `Product marked as ${res.status?.toUpperCase()}`
+        );
+      } else {
+        showNotification('error', res.error || 'Failed to update status');
+      }
+    } catch (err: any) {
+      showNotification('error', err.message || 'Status update failed');
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [product.id]: false }));
+    }
+  };
+
+  // Duplicate single product
+  const handleDuplicate = async (product: any) => {
+    if (!isManagerOrAbove) return;
+    setActionLoading((prev) => ({ ...prev, [`dup-${product.id}`]: true }));
+
+    try {
+      const res = await duplicateProductAction(product.id);
+      if (res.success) {
+        showNotification('success', `Created duplicate: "${product.name} (Copy)"`);
+        fetchProducts();
+      } else {
+        showNotification('error', res.error || 'Duplicate failed');
+      }
+    } catch (err: any) {
+      showNotification('error', err.message || 'Duplicate failed');
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [`dup-${product.id}`]: false }));
+    }
+  };
+
+  // Delete single product
+  const confirmDeleteProduct = async () => {
+    const product = deleteConfirm.product;
+    if (!product) return;
+
+    setActionLoading((prev) => ({ ...prev, [`del-${product.id}`]: true }));
+    try {
+      const res = await deleteProductAction(product.id);
+      if (res.success) {
+        if (res.archivedInstead) {
+          showNotification(
+            'success',
+            `Product archived (has customer orders in history).`
+          );
+        } else {
+          showNotification('success', `Product "${product.name}" deleted permanently.`);
+        }
+        setProducts((prev) => prev.filter((p) => p.id !== product.id));
+        setSelectedIds((prev) => prev.filter((id) => id !== product.id));
+      } else {
+        showNotification('error', res.error || 'Failed to delete product');
+      }
+    } catch (err: any) {
+      showNotification('error', err.message || 'Delete failed');
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [`del-${product.id}`]: false }));
+      setDeleteConfirm({ isOpen: false, product: null });
+    }
+  };
+
+  // Bulk actions
+  const handleBulkStatus = async (status: 'active' | 'draft' | 'archived') => {
+    if (!selectedIds.length) return;
+    setActionLoading((prev) => ({ ...prev, bulk: true }));
+
+    try {
+      const res = await bulkUpdateStatusAction(selectedIds, status);
+      if (res.success) {
+        showNotification('success', `Updated ${res.count} products to ${status.toUpperCase()}`);
+        setProducts((prev) =>
+          prev.map((p) => (selectedIds.includes(p.id) ? { ...p, status } : p))
+        );
+        setSelectedIds([]);
+      } else {
+        showNotification('error', res.error || 'Bulk update failed');
+      }
+    } catch (err: any) {
+      showNotification('error', err.message || 'Bulk update failed');
+    } finally {
+      setActionLoading((prev) => ({ ...prev, bulk: false }));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    setActionLoading((prev) => ({ ...prev, bulk: true }));
+
+    try {
+      const res = await bulkDeleteProductsAction(selectedIds);
+      if (res.success) {
+        showNotification(
+          'success',
+          `Processed: ${res.deletedCount} deleted, ${res.archivedCount} archived.`
+        );
+        setProducts((prev) => prev.filter((p) => !selectedIds.includes(p.id)));
+        setSelectedIds([]);
+      } else {
+        showNotification('error', res.error || 'Bulk delete failed');
+      }
+    } catch (err: any) {
+      showNotification('error', err.message || 'Bulk delete failed');
+    } finally {
+      setActionLoading((prev) => ({ ...prev, bulk: false }));
+      setBulkDeleteConfirm(false);
+    }
+  };
+
   const totalProducts = products.length;
   const lowStockCount = products.filter((p) => (p.stockQuantity ?? 0) <= 5).length;
   const activeCount = products.filter((p) => p.status === 'active').length;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16 relative">
+      {/* Toast Notification */}
+      {notification && (
+        <div
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border text-xs sm:text-sm font-semibold transition transform animate-in slide-in-from-top duration-200 ${
+            notification.type === 'success'
+              ? 'bg-emerald-900 text-white border-emerald-700'
+              : 'bg-rose-900 text-white border-rose-700'
+          }`}
+        >
+          {notification.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          )}
+          <span>{notification.message}</span>
+          <button
+            onClick={() => setNotification(null)}
+            className="ml-2 text-white/70 hover:text-white"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -250,6 +450,82 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
+      {/* Select All / Bulk Action Bar */}
+      {products.length > 0 && isManagerOrAbove && (
+        <div className="flex items-center justify-between px-2 py-1 text-xs">
+          <button
+            onClick={handleSelectAll}
+            className="inline-flex items-center gap-2 font-bold text-neutral-700 hover:text-neutral-900 transition"
+          >
+            {selectedIds.length === products.length && products.length > 0 ? (
+              <CheckSquare className="w-4 h-4 text-emerald-700" />
+            ) : (
+              <Square className="w-4 h-4 text-neutral-400" />
+            )}
+            <span>
+              {selectedIds.length === products.length && products.length > 0
+                ? 'Deselect All'
+                : `Select All (${products.length})`}
+            </span>
+          </button>
+
+          {selectedIds.length > 0 && (
+            <span className="font-semibold text-neutral-500">
+              {selectedIds.length} item{selectedIds.length !== 1 ? 's' : ''} selected
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Floating Bulk Action Bar when items selected */}
+      {selectedIds.length > 0 && isManagerOrAbove && (
+        <div className="sticky top-4 z-40 bg-neutral-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center justify-between gap-3 flex-wrap border border-neutral-700 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-emerald-500 text-neutral-900 font-black text-xs flex items-center justify-center">
+              {selectedIds.length}
+            </span>
+            <span className="text-xs font-bold">Selected</span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => handleBulkStatus('active')}
+              disabled={actionLoading.bulk}
+              className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Mark Active</span>
+            </button>
+
+            <button
+              onClick={() => handleBulkStatus('draft')}
+              disabled={actionLoading.bulk}
+              className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold transition flex items-center gap-1"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              <span>Mark Draft</span>
+            </button>
+
+            <button
+              onClick={() => setBulkDeleteConfirm(true)}
+              disabled={actionLoading.bulk}
+              className="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center gap-1"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Selected</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedIds([])}
+              className="p-1.5 text-neutral-400 hover:text-white transition"
+              title="Cancel Selection"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Loading Skeleton */}
       {loading ? (
         <div className="space-y-3">
@@ -298,7 +574,7 @@ export default function AdminProductsPage() {
           )}
         </div>
       ) : (
-        /* Product Cards List (Mobile-first with Desktop Table) */
+        /* Product Cards List */
         <div className="space-y-3">
           {products.map((product) => {
             const primaryImg =
@@ -310,6 +586,9 @@ export default function AdminProductsPage() {
 
             const isLowStock = (product.stockQuantity ?? 0) <= 5;
             const variantsCount = product.variants ? product.variants.length : 0;
+            const isSelected = selectedIds.includes(product.id);
+            const isToggling = actionLoading[product.id];
+            const isDuplicating = actionLoading[`dup-${product.id}`];
 
             // Margin calculations
             const sellingPrice = Number(product.price) || 0;
@@ -322,10 +601,30 @@ export default function AdminProductsPage() {
             return (
               <div
                 key={product.id}
-                className="bg-white rounded-2xl border border-neutral-200/90 hover:border-emerald-200 hover:shadow-xs transition p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                className={`bg-white rounded-2xl border transition p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                  isSelected
+                    ? 'border-emerald-600 bg-emerald-50/20 ring-1 ring-emerald-500'
+                    : 'border-neutral-200/90 hover:border-emerald-200 hover:shadow-xs'
+                }`}
               >
-                {/* Left side: Thumbnail & Product Info */}
-                <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                {/* Left side: Checkbox + Thumbnail & Product Info */}
+                <div className="flex items-start gap-3 sm:gap-3.5 flex-1 min-w-0">
+                  {/* Selection Checkbox */}
+                  {isManagerOrAbove && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSelect(product.id)}
+                      className="mt-4 sm:mt-5 p-1 text-neutral-400 hover:text-emerald-700 transition shrink-0"
+                    >
+                      {isSelected ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-700" />
+                      ) : (
+                        <Square className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
+
+                  {/* Thumbnail */}
                   <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-neutral-100 overflow-hidden shrink-0 border border-neutral-200">
                     <Image
                       src={primaryImg}
@@ -342,19 +641,30 @@ export default function AdminProductsPage() {
                     )}
                   </div>
 
+                  {/* Details */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                      {/* Clickable 1-click status badge */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(product)}
+                        disabled={isToggling}
+                        title={`Click to change status to ${product.status === 'active' ? 'Draft' : 'Active'}`}
+                        className={`group inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider transition ${
                           product.status === 'active'
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
                             : product.status === 'draft'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-neutral-100 text-neutral-600'
+                            ? 'bg-amber-100 hover:bg-amber-200 text-amber-800'
+                            : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-600'
                         }`}
                       >
-                        {product.status || 'Active'}
-                      </span>
+                        {isToggling ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <span>{product.status || 'Active'}</span>
+                        )}
+                        <span className="text-[9px] opacity-60 font-normal lowercase">(click to toggle)</span>
+                      </button>
 
                       {product.supplierSku && (
                         <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-mono text-[10px] font-bold border border-indigo-100">
@@ -390,7 +700,7 @@ export default function AdminProductsPage() {
                 </div>
 
                 {/* Center / Pricing & Margins */}
-                <div className="flex items-center justify-between sm:justify-end gap-6 sm:gap-8 pt-3 sm:pt-0 border-t sm:border-t-0 border-neutral-100">
+                <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 pt-3 sm:pt-0 border-t sm:border-t-0 border-neutral-100">
                   <div className="text-left sm:text-right">
                     <div className="text-xs text-neutral-500 font-medium">Retail Price</div>
                     <div className="text-base sm:text-lg font-black text-neutral-900">
@@ -403,7 +713,7 @@ export default function AdminProductsPage() {
                     )}
                   </div>
 
-                  {/* Private Wholesale Profit Preview (Restricted from Staff) */}
+                  {/* Wholesale Profit Preview */}
                   {isManagerOrAbove && costPrice > 0 && (
                     <div className="text-right bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100">
                       <div className="text-[10px] font-bold uppercase text-emerald-700">Net Profit</div>
@@ -414,8 +724,9 @@ export default function AdminProductsPage() {
                     </div>
                   )}
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2">
+                  {/* Actions: View, Clone, Edit, Delete */}
+                  <div className="flex items-center gap-1.5">
+                    {/* View on live store */}
                     <Link
                       href={`/products/${product.slug}`}
                       target="_blank"
@@ -425,6 +736,24 @@ export default function AdminProductsPage() {
                       <ExternalLink className="w-4 h-4" />
                     </Link>
 
+                    {/* Duplicate button */}
+                    {isManagerOrAbove && (
+                      <button
+                        type="button"
+                        onClick={() => handleDuplicate(product)}
+                        disabled={isDuplicating}
+                        title="Duplicate Product (Clone)"
+                        className="p-2 rounded-xl text-neutral-500 hover:text-emerald-700 hover:bg-neutral-100 transition disabled:opacity-50"
+                      >
+                        {isDuplicating ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* Edit button */}
                     {isManagerOrAbove && (
                       <Link
                         href={`/admin/products/${product.id}/edit`}
@@ -434,6 +763,18 @@ export default function AdminProductsPage() {
                         <span>Edit</span>
                       </Link>
                     )}
+
+                    {/* Delete button */}
+                    {isManagerOrAbove && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirm({ isOpen: true, product })}
+                        title="Delete Product"
+                        className="p-2 rounded-xl text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -441,7 +782,113 @@ export default function AdminProductsPage() {
           })}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm.isOpen && deleteConfirm.product && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-neutral-900">Delete Product?</h3>
+                <p className="text-xs text-neutral-500 mt-1">
+                  Are you sure you want to delete{' '}
+                  <span className="font-semibold text-neutral-800">
+                    &quot;{deleteConfirm.product.name}&quot;
+                  </span>
+                  ?
+                </p>
+                <div className="mt-2 text-[11px] bg-neutral-50 p-2.5 rounded-lg border border-neutral-200 text-neutral-600">
+                  <strong>Note:</strong> If this product has customer order history, it will be safely{' '}
+                  <strong>archived</strong> to preserve accounting records without breaking database integrity.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm({ isOpen: false, product: null })}
+                className="px-4 py-2 rounded-xl border border-neutral-300 text-neutral-700 text-xs font-bold hover:bg-neutral-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteProduct}
+                disabled={actionLoading[`del-${deleteConfirm.product.id}`]}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+              >
+                {actionLoading[`del-${deleteConfirm.product.id}`] ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Product</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-neutral-900">Delete Multiple Products?</h3>
+                <p className="text-xs text-neutral-500 mt-1">
+                  You are about to delete{' '}
+                  <span className="font-bold text-neutral-900">{selectedIds.length}</span> selected
+                  products.
+                </p>
+                <div className="mt-2 text-[11px] bg-neutral-50 p-2.5 rounded-lg border border-neutral-200 text-neutral-600">
+                  Products with existing customer orders will be safely archived instead of hard deleted.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+              <button
+                type="button"
+                onClick={() => setBulkDeleteConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-neutral-300 text-neutral-700 text-xs font-bold hover:bg-neutral-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={actionLoading.bulk}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+              >
+                {actionLoading.bulk ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirm Delete ({selectedIds.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

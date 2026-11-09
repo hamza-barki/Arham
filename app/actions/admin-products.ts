@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { getServiceRoleClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { requireRole, recordAuditLog } from '@/lib/admin-auth';
@@ -609,6 +610,289 @@ export async function batchImportMarkazAction(
     return { success: inserted > 0, inserted, errors, importedProducts };
   } catch (err: any) {
     return { success: false, inserted: 0, errors: [err.message], importedProducts: [] };
+  }
+}
+
+/**
+ * Delete a product. If it has existing orders, safely archive it
+ * instead to preserve database foreign key integrity and order history.
+ */
+export async function deleteProductAction(productId: string): Promise<{
+  success: boolean;
+  archivedInstead?: boolean;
+  error?: string;
+}> {
+  try {
+    const adminUser = await requireRole('manager');
+
+    if (!isSupabaseConfigured()) {
+      inMemoryAdminProducts = inMemoryAdminProducts.filter((p) => p.id !== productId);
+      revalidatePath('/admin/products');
+      revalidatePath('/');
+      return { success: true };
+    }
+
+    const admin = getServiceRoleClient();
+
+    // Check if product exists in order_items
+    const { data: orderItemRows } = await (admin as any)
+      .from('order_items')
+      .select('id')
+      .eq('product_id', productId)
+      .limit(1);
+
+    if (orderItemRows && orderItemRows.length > 0) {
+      // Cannot hard delete without violating FK; safely archive it
+      await (admin as any)
+        .from('products')
+        .update({ status: 'archived', is_active: false })
+        .eq('id', productId);
+
+      await recordAuditLog({
+        action: 'ARCHIVE_PRODUCT',
+        entity: 'products',
+        entityId: productId,
+        diff: { reason: 'Has associated customer orders; archived to protect history' },
+        actorId: adminUser.userId,
+        actorName: adminUser.fullName,
+      });
+
+      revalidatePath('/admin/products');
+      revalidatePath('/');
+      revalidatePath('/category/[slug]', 'page');
+      return { success: true, archivedInstead: true };
+    }
+
+    // Safe to hard delete: delete child rows first
+    await (admin as any).from('product_images').delete().eq('product_id', productId);
+    await (admin as any).from('product_variants').delete().eq('product_id', productId);
+    await (admin as any).from('product_private').delete().eq('product_id', productId);
+
+    const { error: delErr } = await (admin as any)
+      .from('products')
+      .delete()
+      .eq('id', productId);
+
+    if (delErr) {
+      // Fallback archive if any other constraint triggered
+      await (admin as any)
+        .from('products')
+        .update({ status: 'archived', is_active: false })
+        .eq('id', productId);
+
+      return { success: true, archivedInstead: true };
+    }
+
+    await recordAuditLog({
+      action: 'DELETE_PRODUCT',
+      entity: 'products',
+      entityId: productId,
+      diff: { deleted: true },
+      actorId: adminUser.userId,
+      actorName: adminUser.fullName,
+    });
+
+    revalidatePath('/admin/products');
+    revalidatePath('/');
+    revalidatePath('/category/[slug]', 'page');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Quick 1-click status toggle (active <-> draft or specific status)
+ */
+export async function toggleProductStatusAction(
+  productId: string,
+  newStatus?: 'active' | 'draft' | 'archived'
+): Promise<{ success: boolean; status?: string; error?: string }> {
+  try {
+    const adminUser = await requireRole('manager');
+
+    if (!isSupabaseConfigured()) {
+      const p = inMemoryAdminProducts.find((x) => x.id === productId);
+      if (p) {
+        p.status = newStatus || (p.status === 'active' ? 'draft' : 'active');
+        revalidatePath('/admin/products');
+        return { success: true, status: p.status };
+      }
+      return { success: false, error: 'Product not found' };
+    }
+
+    const admin = getServiceRoleClient();
+
+    let targetStatus = newStatus;
+    if (!targetStatus) {
+      const { data: cur } = await (admin as any)
+        .from('products')
+        .select('status')
+        .eq('id', productId)
+        .single();
+      targetStatus = cur?.status === 'active' ? 'draft' : 'active';
+    }
+
+    const { error } = await (admin as any)
+      .from('products')
+      .update({
+        status: targetStatus,
+        is_active: targetStatus === 'active',
+      })
+      .eq('id', productId);
+
+    if (error) return { success: false, error: error.message };
+
+    await recordAuditLog({
+      action: 'TOGGLE_PRODUCT_STATUS',
+      entity: 'products',
+      entityId: productId,
+      diff: { status: targetStatus },
+      actorId: adminUser.userId,
+      actorName: adminUser.fullName,
+    });
+
+    revalidatePath('/admin/products');
+    revalidatePath('/');
+    revalidatePath('/category/[slug]', 'page');
+    return { success: true, status: targetStatus };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Duplicate a product (cloning images, variants, wholesale pricing)
+ */
+export async function duplicateProductAction(productId: string): Promise<{
+  success: boolean;
+  newProductId?: string;
+  error?: string;
+}> {
+  try {
+    await requireRole('manager');
+    const detail = await getAdminProductDetailAction(productId);
+    if (!detail.success || !detail.product) {
+      return { success: false, error: detail.error || 'Source product not found' };
+    }
+
+    const orig = detail.product;
+    const timestamp = Date.now().toString().slice(-4);
+    const newName = `${orig.name} (Copy)`;
+    const newSku = orig.supplierSku ? `${orig.supplierSku}-COPY-${timestamp}` : `COPY-${timestamp}`;
+
+    const res = await saveProductAction({
+      name: newName,
+      slug: '',
+      description: orig.description,
+      price: orig.price,
+      compareAtPrice: orig.compareAtPrice,
+      categoryId: orig.categoryId,
+      status: 'draft',
+      supplierSku: newSku,
+      costPrice: orig.costPrice,
+      supplierDeliveryCost: orig.supplierDeliveryCost,
+      codFee: orig.codFee,
+      notes: orig.notes ? `${orig.notes} (Duplicated)` : 'Duplicated product',
+      images: orig.images.map((img) => ({
+        url: img.url,
+        publicId: img.publicId,
+        position: img.position,
+        colorTag: img.colorTag,
+        isSizeChart: img.isSizeChart,
+      })),
+      variants: orig.variants.map((v, i) => ({
+        size: v.size,
+        color: v.color,
+        stockQuantity: v.stockQuantity,
+        skuSuffix: `${v.skuSuffix || 'V'}-${timestamp}`,
+      })),
+    });
+
+    if (!res.success) {
+      return { success: false, error: res.error };
+    }
+
+    revalidatePath('/admin/products');
+    return { success: true, newProductId: res.productId };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Bulk delete products
+ */
+export async function bulkDeleteProductsAction(productIds: string[]): Promise<{
+  success: boolean;
+  deletedCount: number;
+  archivedCount: number;
+  error?: string;
+}> {
+  try {
+    let deletedCount = 0;
+    let archivedCount = 0;
+
+    for (const id of productIds) {
+      const res = await deleteProductAction(id);
+      if (res.success) {
+        if (res.archivedInstead) archivedCount++;
+        else deletedCount++;
+      }
+    }
+
+    revalidatePath('/admin/products');
+    revalidatePath('/');
+    revalidatePath('/category/[slug]', 'page');
+    return { success: true, deletedCount, archivedCount };
+  } catch (err: any) {
+    return { success: false, deletedCount: 0, archivedCount: 0, error: err.message };
+  }
+}
+
+/**
+ * Bulk update product status (Active, Draft, Archived)
+ */
+export async function bulkUpdateStatusAction(
+  productIds: string[],
+  status: 'active' | 'draft' | 'archived'
+): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const adminUser = await requireRole('manager');
+
+    if (!isSupabaseConfigured()) {
+      inMemoryAdminProducts.forEach((p) => {
+        if (productIds.includes(p.id)) p.status = status;
+      });
+      revalidatePath('/admin/products');
+      return { success: true, count: productIds.length };
+    }
+
+    const admin = getServiceRoleClient();
+    const { error } = await (admin as any)
+      .from('products')
+      .update({
+        status,
+        is_active: status === 'active',
+      })
+      .in('id', productIds);
+
+    if (error) return { success: false, count: 0, error: error.message };
+
+    await recordAuditLog({
+      action: 'BULK_UPDATE_PRODUCT_STATUS',
+      entity: 'products',
+      diff: { count: productIds.length, status },
+      actorId: adminUser.userId,
+      actorName: adminUser.fullName,
+    });
+
+    revalidatePath('/admin/products');
+    revalidatePath('/');
+    revalidatePath('/category/[slug]', 'page');
+    return { success: true, count: productIds.length };
+  } catch (err: any) {
+    return { success: false, count: 0, error: err.message };
   }
 }
 

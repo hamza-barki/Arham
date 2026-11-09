@@ -19,7 +19,7 @@ import {
   Sparkles,
   Check,
 } from 'lucide-react';
-import { saveProductAction, AdminProductFormInput } from '@/app/actions/admin-products';
+import { saveProductAction, deleteProductAction, AdminProductFormInput } from '@/app/actions/admin-products';
 import { CATEGORIES } from '@/lib/constants';
 import cloudinaryLoader from '@/lib/image-loader';
 
@@ -63,7 +63,29 @@ export default function ProductForm({ initialData, isEdit = false }: ProductForm
 
   const [newImageUrl, setNewImageUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleDeleteProduct = async () => {
+    if (!formData.id) return;
+    setDeleting(true);
+    try {
+      const res = await deleteProductAction(formData.id);
+      if (res.success) {
+        router.push('/admin/products');
+        router.refresh();
+      } else {
+        setErrorMsg(res.error || 'Failed to delete product');
+        setShowDeleteModal(false);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to delete product');
+      setShowDeleteModal(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Live Margin & Profit Calculations
   const sellingPrice = Number(formData.price) || 0;
@@ -597,17 +619,68 @@ export default function ProductForm({ initialData, isEdit = false }: ProductForm
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="pt-2 flex justify-end">
+      {/* Action Buttons: Delete (if edit) & Save */}
+      <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-neutral-200">
+        {isEdit && formData.id ? (
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete Product</span>
+          </button>
+        ) : (
+          <div />
+        )}
+
         <button
           type="submit"
           disabled={submitting}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-sm shadow-sm transition"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-sm shadow-sm transition"
         >
           <Save className="w-4 h-4" />
           <span>{submitting ? 'Saving Product...' : 'Save Product'}</span>
         </button>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-neutral-900">Delete this product?</h3>
+                <p className="text-xs text-neutral-500 mt-1">
+                  Are you sure you want to delete &quot;{formData.name}&quot;? If customer orders exist for this item, it will be safely archived to protect order records.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-xl border border-neutral-300 text-neutral-700 text-xs font-bold hover:bg-neutral-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteProduct}
+                disabled={deleting}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{deleting ? 'Deleting...' : 'Confirm Delete'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </form>
   );

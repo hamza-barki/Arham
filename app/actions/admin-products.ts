@@ -290,10 +290,18 @@ export async function saveProductAction(input: AdminProductFormInput): Promise<{
 
     const admin = getServiceRoleClient();
 
+    // Build a unique SKU for the products table (TEXT UNIQUE NOT NULL)
+    // Format: MKZ-<supplierSku> or slug-based fallback, timestamp-suffixed for uniqueness
+    const productSku =
+      input.supplierSku && input.supplierSku.trim()
+        ? `MKZ-${input.supplierSku.trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '-').slice(0, 40)}`
+        : `${slug.toUpperCase().replace(/[^A-Z0-9\-]/g, '-').slice(0, 40)}-${Date.now()}`;
+
     // 1. Upsert product
     const productPayload: any = {
       name: input.name.trim(),
       slug,
+      sku: productSku,
       description: input.description,
       price: input.price,
       compare_at_price: input.compareAtPrice || null,
@@ -306,17 +314,43 @@ export async function saveProductAction(input: AdminProductFormInput): Promise<{
     let savedProductId = input.id;
 
     if (savedProductId) {
+      // For updates, don't overwrite sku (it's unique and set at creation)
+      const { sku: _sku, ...updatePayload } = productPayload;
       const { error: updErr } = await (admin as any)
         .from('products')
-        .update(productPayload)
+        .update(updatePayload)
         .eq('id', savedProductId);
       if (updErr) return { success: false, error: updErr.message };
     } else {
-      const { data: newProd, error: insErr } = await (admin as any)
+      // For new products: attempt insert; if SKU collision (UNIQUE), suffix with timestamp
+      let insErr: any = null;
+      let newProd: any = null;
+
+      const firstAttempt = await (admin as any)
         .from('products')
         .insert(productPayload)
         .select('id')
         .single();
+
+      insErr = firstAttempt.error;
+      newProd = firstAttempt.data;
+
+      // If SKU uniqueness violation, retry with timestamp suffix
+      if (insErr && (insErr.code === '23505' || insErr.message?.includes('sku'))) {
+        const retryPayload = {
+          ...productPayload,
+          sku: `${productPayload.sku}-${Date.now()}`,
+          slug: `${slug}-${Date.now()}`,
+        };
+        const secondAttempt = await (admin as any)
+          .from('products')
+          .insert(retryPayload)
+          .select('id')
+          .single();
+        insErr = secondAttempt.error;
+        newProd = secondAttempt.data;
+      }
+
       if (insErr) return { success: false, error: insErr.message };
       savedProductId = newProd.id;
     }

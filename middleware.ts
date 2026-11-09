@@ -84,10 +84,23 @@ export async function middleware(request: NextRequest) {
         .limit(1)
         .single();
 
-      const userRole = roleRow?.role;
+      let userRole = roleRow?.role;
+
+      // Fallback check: also inspect public.admins
+      if (!userRole) {
+        const { data: adminRow } = await adminClient
+          .from('admins')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (adminRow?.role) {
+          userRole = adminRow.role;
+        }
+      }
+
       const allowedRoles = ['staff', 'manager', 'admin', 'super_admin'];
 
-      if (roleError || !userRole || !allowedRoles.includes(userRole)) {
+      if (!userRole || !allowedRoles.includes(userRole)) {
         return isApi
           ? NextResponse.json({ error: '403 Forbidden: Insufficient permissions.' }, { status: 403 })
           : new NextResponse(

@@ -119,6 +119,11 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        source: '/orders/track',
+        destination: '/',
+        permanent: true,
+      },
+      {
         source: '/products/:slug',
         destination: '/product/:slug',
         permanent: true,

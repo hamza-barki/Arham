@@ -49,7 +49,6 @@ export function Navbar() {
         { name: 'Crossbody Bags', href: '/category/bags?sub=crossbody-bags' },
       ],
     },
-    { name: 'Track Order', href: '/orders/track' },
   ];
 
   return (
@@ -156,7 +155,7 @@ export function Navbar() {
             {mounted && isStaff && (
               <Link
                 href="/admin"
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold bg-neutral-900 text-amber-300 hover:bg-neutral-800 rounded-xl transition shadow-xs border border-neutral-700"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold bg-neutral-900 text-amber-300 hover:bg-neutral-800 rounded-xl transition shadow-xs border border-neutral-700"
                 title="Open Admin Dashboard"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />

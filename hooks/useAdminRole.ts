@@ -74,7 +74,18 @@ export function useAdminRole(): AdminRoleState {
           if (!error && data?.role) {
             setRole(data.role as UserRole);
           } else {
-            setRole('customer');
+            // Fallback check: check public.admins table
+            const { data: adminData } = await (supabase as any)
+              .from('admins')
+              .select('role')
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            if (isMounted && adminData?.role) {
+              setRole(adminData.role as UserRole);
+            } else if (isMounted) {
+              setRole('customer');
+            }
           }
         }
       } catch (err) {

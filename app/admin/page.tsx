@@ -248,7 +248,18 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* QUICK WORKFLOW SHORTCUTS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <Link
+          href="/admin/products/new"
+          className="bg-emerald-950 text-amber-300 p-3.5 rounded-2xl shadow-xs hover:bg-emerald-900 border border-emerald-800 transition flex items-center justify-between col-span-2 sm:col-span-1"
+        >
+          <div className="space-y-0.5">
+            <p className="font-bold text-xs text-amber-300">+ New Product</p>
+            <p className="text-[10px] text-emerald-300">Publish catalog items</p>
+          </div>
+          <Package className="w-4 h-4 text-amber-300" />
+        </Link>
+
         <Link
           href="/admin/orders?status=pending_confirmation"
           className="bg-emerald-900 text-white p-3.5 rounded-2xl shadow-xs hover:bg-emerald-800 transition flex items-center justify-between"

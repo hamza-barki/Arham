@@ -60,8 +60,6 @@ export function WhatsAppFloatingButton({ phoneNumber }: WhatsAppFloatingButtonPr
   } else if (pathname.includes('/order-confirmation/')) {
     const orderId = pathname.split('/').pop() || '';
     prefilledMessage = `Assalam-o-Alaikum! I just placed an order (Ref: ${orderId}) and would like to confirm the details.`;
-  } else if (pathname === '/orders/track') {
-    prefilledMessage = `Assalam-o-Alaikum! I would like to track my order consignment with your support team.`;
   } else if (pathname === '/cart' || pathname === '/checkout') {
     prefilledMessage = `Assalam-o-Alaikum! I need assistance with completing my order on ${BRAND_NAME}.`;
   }

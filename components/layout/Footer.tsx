@@ -164,11 +164,6 @@ export function Footer() {
             </h5>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link href="/orders/track" className="hover:text-amber-400 transition-colors">
-                  Track Your Order
-                </Link>
-              </li>
-              <li>
                 <Link href="/shipping-policy" className="hover:text-amber-400 transition-colors">
                   Nationwide Shipping & COD
                 </Link>
@@ -186,6 +181,12 @@ export function Footer() {
               <li>
                 <Link href="/contact" className="hover:text-amber-400 transition-colors">
                   Contact & Store Locations
+                </Link>
+              </li>
+              <li>
+                <Link href="/admin" className="hover:text-amber-400 transition-colors flex items-center gap-1.5 pt-1 text-neutral-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Admin Portal</span>
                 </Link>
               </li>
             </ul>

@@ -66,7 +66,18 @@ async function seedAdmin() {
     user = createData.user;
     console.log(`✅ Auth user created with ID: ${user.id}`);
   } else {
-    console.log(`ℹ️ Auth user already exists with ID: ${user.id}`);
+    console.log(`ℹ️ Auth user already exists with ID: ${user.id}. Updating password and confirmation...`);
+    const { data: updateData, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      password,
+      email_confirm: true,
+      user_metadata: { role, full_name: 'Store Super Admin' },
+    });
+    if (updateError) {
+      console.error('❌ Failed to update auth user:', updateError?.message);
+      process.exit(1);
+    }
+    user = updateData.user;
+    console.log(`✅ Auth user updated.`);
   }
 
   // 2. Insert into public.admins table
@@ -87,10 +98,37 @@ async function seedAdmin() {
     process.exit(1);
   }
 
+  // 3. Insert into public.user_roles table
+  const { data: roleRecord, error: roleError } = await supabaseAdmin
+    .from('user_roles')
+    .upsert(
+      {
+        user_id: user.id,
+        role: role,
+      },
+      { onConflict: 'user_id,role' }
+    )
+    .select('*')
+    .single();
+
+  if (roleError) {
+    console.error('❌ Failed to assign admin role in public.user_roles:', roleError.message);
+    process.exit(1);
+  }
+
+  // 4. Ensure profile exists
+  await supabaseAdmin
+    .from('profiles')
+    .upsert({
+      id: user.id,
+      email: email,
+      full_name: 'Store Super Admin',
+    }, { onConflict: 'id' });
+
   console.log(`🎉 SUCCESS! Admin user provisioned:`);
   console.log(`   Email: ${email}`);
-  console.log(`   Role:  ${adminRecord.role}`);
-  console.log(`   ID:    ${adminRecord.id}`);
+  console.log(`   Role:  ${role}`);
+  console.log(`   ID:    ${user.id}`);
 }
 
 seedAdmin();

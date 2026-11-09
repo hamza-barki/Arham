@@ -23,6 +23,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminRole } from '@/hooks/useAdminRole';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { formatPKR } from '@/lib/utils';
 import { PAKISTAN_CITIES, BRAND_NAME } from '@/lib/constants';
@@ -33,6 +34,7 @@ type ActiveTab = 'orders' | 'addresses' | 'profile';
 export default function AccountPage() {
   const router = useRouter();
   const { user, profile, isLoading, signOut, updateProfile, toggleMarketingConsent } = useAuth();
+  const { isStaff, role } = useAdminRole();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('orders');
   const [orders, setOrders] = useState<any[]>([]);
@@ -374,9 +376,16 @@ export default function AccountPage() {
               {(profile?.full_name || user.email || 'U')[0].toUpperCase()}
             </div>
             <div>
-              <span className="text-xs uppercase tracking-widest text-amber-300 font-bold block mb-1">
-                Customer Account
-              </span>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs uppercase tracking-widest text-amber-300 font-bold block">
+                  {isStaff ? `${role.replace('_', ' ').toUpperCase()} Account` : 'Customer Account'}
+                </span>
+                {isStaff && (
+                  <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30 font-bold font-mono">
+                    Staff
+                  </span>
+                )}
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold">
                 {profile?.full_name || 'Valued Customer'}
               </h1>
@@ -386,7 +395,16 @@ export default function AccountPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {isStaff && (
+              <Link
+                href="/admin"
+                className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-neutral-950 text-xs font-bold transition-all shadow-md flex items-center gap-1.5"
+              >
+                <ShieldCheck className="w-4 h-4 text-neutral-950" />
+                Admin Dashboard
+              </Link>
+            )}
             <Link
               href="/cart"
               className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-md transition-colors"
@@ -497,14 +515,6 @@ export default function AccountPage() {
                         <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-200">
                           {statusLabel}
                         </span>
-
-                        <Link
-                          href={`/orders/track?num=${order.order_number}`}
-                          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-emerald-950 transition-colors"
-                        >
-                          <Truck className="w-3.5 h-3.5" />
-                          Track Consignment
-                        </Link>
                       </div>
                     </div>
 

@@ -79,7 +79,7 @@ export default function LoginPage() {
             Welcome Back
           </h1>
           <p className="text-xs text-neutral-500 mt-1">
-            Sign in to track orders, manage saved Pakistani addresses, and view purchase history.
+            Sign in to view your orders, manage saved Pakistani addresses, and view purchase history.
           </p>
         </div>
 

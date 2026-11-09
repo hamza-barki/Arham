@@ -104,19 +104,32 @@ export async function getCurrentAdminUser(): Promise<AdminUserSession | null> {
 
     // Query user's real role from public.user_roles using service client
     const admin = getServiceRoleClient();
-    const { data: roleRow, error: roleError } = await (admin as any)
+    const { data: roleRow } = await (admin as any)
       .from('user_roles')
       .select('role, profiles(full_name, email)')
       .eq('user_id', user.id)
       .order('role', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (roleError || !roleRow?.role) {
+    let role = roleRow?.role as UserRole | undefined;
+
+    // Fallback check: query public.admins if not in user_roles
+    if (!role) {
+      const { data: adminRow } = await (admin as any)
+        .from('admins')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (adminRow?.role) {
+        role = adminRow.role as UserRole;
+      }
+    }
+
+    if (!role) {
       return null;
     }
 
-    const role = roleRow.role as UserRole;
     const level = ROLE_LEVELS[role] || 0;
 
     // Must be staff or above

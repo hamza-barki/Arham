@@ -124,10 +124,7 @@ export default function ShippingPolicyPage() {
               4. Consignment Tracking
             </h2>
             <p>
-              As soon as your parcel is handed over to the courier, an SMS & WhatsApp notification containing your Consignment Number (CN) will be dispatched. You can track your parcel live anytime on our{' '}
-              <Link href="/orders/track" className="text-emerald-900 font-semibold underline">
-                Track Order portal
-              </Link>.
+              As soon as your parcel is handed over to the courier, an SMS & WhatsApp notification containing your Consignment Number (CN) and courier tracking link will be dispatched directly to your phone.
             </p>
           </section>
 

@@ -383,7 +383,7 @@ export async function saveProductAction(input: AdminProductFormInput): Promise<{
 }
 
 /**
- * Batch import products parsed from Markaz Excel / CSV
+ * Batch import products parsed from Markaz Excel / CSV or Media ZIP
  */
 export async function batchImportMarkazAction(
   products: Array<{
@@ -391,17 +391,39 @@ export async function batchImportMarkazAction(
     supplierSku: string;
     costPrice: number;
     sellingPrice: number;
+    categoryId?: string;
     category?: string;
     description?: string;
     sizes?: string;
     colors?: string;
     imageUrl?: string;
+    images?: string[];
   }>
-): Promise<{ success: boolean; inserted: number; errors: string[] }> {
+): Promise<{
+  success: boolean;
+  inserted: number;
+  errors: string[];
+  importedProducts: Array<{
+    id: string;
+    name: string;
+    sku: string;
+    price: number;
+    costPrice: number;
+    imageUrl?: string;
+  }>;
+}> {
   try {
     const adminUser = await requireRole('manager');
     let inserted = 0;
     const errors: string[] = [];
+    const importedProducts: Array<{
+      id: string;
+      name: string;
+      sku: string;
+      price: number;
+      costPrice: number;
+      imageUrl?: string;
+    }> = [];
 
     for (const item of products) {
       try {
@@ -430,16 +452,39 @@ export async function batchImportMarkazAction(
           });
         }
 
-        const imagesList = item.imageUrl
-          ? [
-              {
-                url: item.imageUrl,
-                position: 0,
-                colorTag: 'Primary',
+        const imagesList =
+          item.images && item.images.length > 0
+            ? item.images.map((url, i) => ({
+                url,
+                position: i,
+                colorTag: i === 0 ? 'Primary' : null,
                 isSizeChart: false,
-              },
-            ]
-          : [];
+              }))
+            : item.imageUrl
+            ? [
+                {
+                  url: item.imageUrl,
+                  position: 0,
+                  colorTag: 'Primary',
+                  isSizeChart: false,
+                },
+              ]
+            : [];
+
+        // Match category
+        let targetCategoryId = item.categoryId;
+        if (!targetCategoryId || !CATEGORIES.some((c) => c.id === targetCategoryId)) {
+          // Try to match by category name if provided
+          if (item.category) {
+            const found = CATEGORIES.find(
+              (c) => c.name.toLowerCase() === item.category!.toLowerCase()
+            );
+            if (found) targetCategoryId = found.id;
+          }
+          if (!targetCategoryId) {
+            targetCategoryId = CATEGORIES[0]?.id;
+          }
+        }
 
         const res = await saveProductAction({
           name: item.name,
@@ -447,21 +492,29 @@ export async function batchImportMarkazAction(
           description: item.description || `Markaz Wholesale Product [${item.supplierSku || ''}]`,
           price: item.sellingPrice,
           compareAtPrice: Math.round(item.sellingPrice * 1.25),
-          categoryId: CATEGORIES[0].id,
+          categoryId: targetCategoryId,
           status: 'active',
           supplierSku: item.supplierSku,
           costPrice: item.costPrice || Math.round(item.sellingPrice * 0.6),
           supplierDeliveryCost: 150,
           codFee: 50,
-          notes: 'Batch imported from Markaz Excel spreadsheet',
+          notes: 'Batch imported from Markaz Supplier Catalog',
           images: imagesList,
           variants: variantsList,
         });
 
-        if (res.success) {
+        if (res.success && res.productId) {
           inserted++;
+          importedProducts.push({
+            id: res.productId,
+            name: item.name,
+            sku: item.supplierSku || '',
+            price: item.sellingPrice,
+            costPrice: item.costPrice || 0,
+            imageUrl: item.imageUrl || (item.images && item.images[0]) || '',
+          });
         } else {
-          errors.push(`"${item.name}": ${res.error}`);
+          errors.push(`"${item.name}": ${res.error || 'Failed to save'}`);
         }
       } catch (rowErr: any) {
         errors.push(`"${item.name}": ${rowErr.message}`);
@@ -476,9 +529,9 @@ export async function batchImportMarkazAction(
       actorName: adminUser.fullName,
     });
 
-    return { success: inserted > 0, inserted, errors };
+    return { success: inserted > 0, inserted, errors, importedProducts };
   } catch (err: any) {
-    return { success: false, inserted: 0, errors: [err.message] };
+    return { success: false, inserted: 0, errors: [err.message], importedProducts: [] };
   }
 }
 

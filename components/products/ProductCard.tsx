@@ -56,6 +56,7 @@ export function ProductCard({ product }: ProductCardProps) {
           src={mainImage}
           alt={product.name}
           fill
+          unoptimized={mainImage.startsWith('data:')}
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           loader={cloudinaryLoader}
           className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"

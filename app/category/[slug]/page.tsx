@@ -6,6 +6,10 @@ import { INITIAL_CATEGORIES, INITIAL_PRODUCTS, BRAND_NAME } from '@/lib/constant
 import { Category, ProductWithRelations } from '@/types';
 import { CategoryPageView } from '@/components/category/CategoryPageView';
 
+// Force dynamic SSR so freshly imported / updated products show immediately without stale cache
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface CategoryPageProps {
   params: {
     slug: string;
@@ -48,7 +52,11 @@ async function getCategoryData(slug: string) {
       .select('*')
       .eq('parent_id', category.id);
 
-    // 3. Fetch products
+    // 3. Include parent category + all its subcategory IDs
+    const subcategoryIds = (subcategories || []).map((s: any) => s.id);
+    const allCategoryIds = [category.id, ...subcategoryIds];
+
+    // 4. Fetch products belonging to this category or any of its subcategories
     const { data: products }: any = await (supabase as any)
       .from('products')
       .select(`
@@ -57,7 +65,7 @@ async function getCategoryData(slug: string) {
         variants:product_variants(*),
         images:product_images(*)
       `)
-      .eq('category_id', category.id)
+      .in('category_id', allCategoryIds)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 

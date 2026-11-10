@@ -29,12 +29,12 @@ export const STORE_CONFIG: StoreBrandConfig = {
   brandName: process.env.NEXT_PUBLIC_BRAND_NAME || 'Arham Collection',
   legalEntityName: 'Arham Collection Private Limited',
   tagline: 'Refined Pakistani Fashion & Leather Goods',
-  // TODO: Replace with verified merchant SIM/Hotline
-  supportPhone: process.env.NEXT_PUBLIC_SUPPORT_PHONE || '+92 300 0000000',
+  // Merchant support phone
+  supportPhone: process.env.NEXT_PUBLIC_SUPPORT_PHONE || '+92 311 9364088',
   // TODO: Replace with official domain email
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@arhamcollection.pk',
-  // TODO: Replace with official WhatsApp Business number
-  supportWhatsApp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '03000000000',
+  // WhatsApp Business number
+  supportWhatsApp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '923119364088',
   // TODO: Replace with physical operational warehouse or office address in Pakistan
   officeAddress: 'Industrial Area, Phase 2, Lahore, Punjab, Pakistan',
   businessHours: 'Monday - Saturday: 10:00 AM - 8:00 PM PKT',

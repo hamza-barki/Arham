@@ -616,12 +616,11 @@ export default function CheckoutPage() {
                       const rawWa = STORE_CONFIG.supportWhatsApp;
                       const digits = rawWa.replace(/\D/g, '');
                       const waNum = digits.startsWith('92') ? digits : digits.startsWith('0') ? '92' + digits.slice(1) : '92' + digits;
-                      const watchedPhone = (typeof window !== 'undefined' && document.querySelector<HTMLInputElement>('[name="phone"]')?.value) || '';
-                      const watchedName = (typeof window !== 'undefined' && document.querySelector<HTMLInputElement>('[name="customer_name"]')?.value) || 'Customer';
-                      const itemLines = items.map(i => `• ${i.product?.name || 'Product'} x${i.quantity} — ${formatPKR((i.product?.price || 0) * i.quantity)}`).join('%0A');
+                      const itemLines = items.map(i => `• ${i.name || 'Product'} x${i.quantity} — ${formatPKR((i.price || 0) * i.quantity)}`).join('%0A');
                       const msg = `Assalam-o-Alaikum! Mujhe WhatsApp par order karna hai 🛍️%0A%0A*Order Summary:*%0A${itemLines}%0A%0A*Total:* ${formatPKR(honest.grandTotal)}%0A*Payment:* Cash on Delivery%0A%0AKindly confirm my order. Shukriya! 🙏`;
                       const waHref = `https://wa.me/${waNum}?text=${msg}`;
                       return (
+
                         <a
                           href={waHref}
                           target="_blank"

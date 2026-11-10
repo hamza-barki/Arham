@@ -22,6 +22,7 @@ import {
 import { saveProductAction, deleteProductAction, AdminProductFormInput } from '@/app/actions/admin-products';
 import { CATEGORIES } from '@/lib/constants';
 import cloudinaryLoader from '@/lib/image-loader';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 
 interface ProductFormProps {
   initialData?: AdminProductFormInput;
@@ -285,12 +286,11 @@ export default function ProductForm({ initialData, isEdit = false }: ProductForm
             <label className="block font-semibold text-neutral-800 mb-1">
               Product Description
             </label>
-            <textarea
-              rows={3}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            <RichTextEditor
+              value={formData.description || ''}
+              onChange={(html) => setFormData({ ...formData, description: html })}
               placeholder="Detailed fabric specs, embroidery details, care instructions..."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-800"
+              minHeight={200}
             />
           </div>
         </div>

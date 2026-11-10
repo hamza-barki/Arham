@@ -81,6 +81,10 @@ export default function ImportMarkazPage() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<ParsedProduct | null>(null);
 
+  // Drag & drop state
+  const [excelDragging, setExcelDragging] = useState(false);
+  const [zipDragging, setZipDragging] = useState(false);
+
   const excelInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
 
@@ -390,6 +394,31 @@ export default function ImportMarkazPage() {
     }
   };
 
+  // ── Drag & Drop handlers ──────────────────────────────────────────────────
+  const handleExcelDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setExcelDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && /\.(xlsx|xls|csv)$/i.test(file.name)) {
+      setExcelFile(file);
+      processFiles(file, zipFile);
+    } else if (file) {
+      alert('Please drop an Excel or CSV file (.xlsx, .xls, .csv)');
+    }
+  };
+
+  const handleZipDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setZipDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && /\.zip$/i.test(file.name)) {
+      setZipFile(file);
+      processFiles(excelFile, file);
+    } else if (file) {
+      alert('Please drop a ZIP file (.zip)');
+    }
+  };
+
   const handleRemoveRow = (index: number) => {
     setParsedRows(parsedRows.filter((_, i) => i !== index));
   };
@@ -584,13 +613,19 @@ export default function ImportMarkazPage() {
 
       {/* Upload Dropzones */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Step 1: Excel File (Optional) */}
+        {/* Step 1: Excel / CSV */}
         <div
           onClick={() => excelInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center min-h-[170px] ${
-            excelFile
+          onDragOver={(e) => { e.preventDefault(); setExcelDragging(true); }}
+          onDragEnter={(e) => { e.preventDefault(); setExcelDragging(true); }}
+          onDragLeave={() => setExcelDragging(false)}
+          onDrop={handleExcelDrop}
+          className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[170px] ${
+            excelDragging
+              ? 'border-emerald-500 bg-emerald-50 scale-[1.02] shadow-lg shadow-emerald-100'
+              : excelFile
               ? 'border-emerald-500 bg-emerald-50/50'
-              : 'border-neutral-300 hover:border-emerald-700 bg-white'
+              : 'border-neutral-300 hover:border-emerald-700 hover:bg-emerald-50/30 bg-white'
           }`}
         >
           <input
@@ -601,26 +636,33 @@ export default function ImportMarkazPage() {
             className="hidden"
           />
           <div
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-all ${
+              excelDragging ? 'bg-emerald-500 text-white scale-110' :
               excelFile ? 'bg-emerald-600 text-white' : 'bg-neutral-100 text-neutral-600'
             }`}
           >
             <FileSpreadsheet className="w-6 h-6" />
           </div>
-          {excelFile ? (
+          {excelDragging ? (
             <div className="space-y-1">
-              <div className="text-sm font-bold text-emerald-900 truncate max-w-xs">
-                {excelFile.name}
-              </div>
+              <div className="text-sm font-bold text-emerald-700">Drop Excel / CSV here!</div>
+              <p className="text-xs text-emerald-600">Release to upload</p>
+            </div>
+          ) : excelFile ? (
+            <div className="space-y-1">
+              <div className="text-sm font-bold text-emerald-900 truncate max-w-xs">{excelFile.name}</div>
               <div className="text-xs text-emerald-700 font-medium">
-                {(excelFile.size / 1024).toFixed(1)} KB • Click to change
+                {(excelFile.size / 1024).toFixed(1)} KB • Click or drag to replace
               </div>
             </div>
           ) : (
             <div className="space-y-1">
               <div className="text-sm font-bold text-neutral-800">1. Markaz Excel / CSV</div>
               <p className="text-xs text-neutral-500 max-w-xs">
-                Upload .xlsx or .csv containing Product Name, SKU, Cost Price, Selling Price.
+                <span className="font-semibold text-emerald-700">Drag & drop</span> or click to upload .xlsx / .csv
+              </p>
+              <p className="text-[11px] text-neutral-400">
+                Contains Product Name, SKU, Cost Price, Selling Price
               </p>
             </div>
           )}
@@ -629,10 +671,16 @@ export default function ImportMarkazPage() {
         {/* Step 2: Image ZIP Archive */}
         <div
           onClick={() => zipInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center min-h-[170px] ${
-            zipFile
+          onDragOver={(e) => { e.preventDefault(); setZipDragging(true); }}
+          onDragEnter={(e) => { e.preventDefault(); setZipDragging(true); }}
+          onDragLeave={() => setZipDragging(false)}
+          onDrop={handleZipDrop}
+          className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[170px] ${
+            zipDragging
+              ? 'border-indigo-500 bg-indigo-50 scale-[1.02] shadow-lg shadow-indigo-100'
+              : zipFile
               ? 'border-indigo-500 bg-indigo-50/50'
-              : 'border-neutral-300 hover:border-indigo-600 bg-white'
+              : 'border-neutral-300 hover:border-indigo-600 hover:bg-indigo-50/30 bg-white'
           }`}
         >
           <input
@@ -643,26 +691,33 @@ export default function ImportMarkazPage() {
             className="hidden"
           />
           <div
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-all ${
+              zipDragging ? 'bg-indigo-500 text-white scale-110' :
               zipFile ? 'bg-indigo-600 text-white' : 'bg-neutral-100 text-neutral-600'
             }`}
           >
             <FolderArchive className="w-6 h-6" />
           </div>
-          {zipFile ? (
+          {zipDragging ? (
             <div className="space-y-1">
-              <div className="text-sm font-bold text-indigo-900 truncate max-w-xs">
-                {zipFile.name}
-              </div>
+              <div className="text-sm font-bold text-indigo-700">Drop ZIP file here!</div>
+              <p className="text-xs text-indigo-600">Release to upload</p>
+            </div>
+          ) : zipFile ? (
+            <div className="space-y-1">
+              <div className="text-sm font-bold text-indigo-900 truncate max-w-xs">{zipFile.name}</div>
               <div className="text-xs text-indigo-700 font-medium">
-                {(zipFile.size / (1024 * 1024)).toFixed(2)} MB • Click to replace
+                {(zipFile.size / (1024 * 1024)).toFixed(2)} MB • Click or drag to replace
               </div>
             </div>
           ) : (
             <div className="space-y-1">
               <div className="text-sm font-bold text-neutral-800">2. Product Media ZIP</div>
               <p className="text-xs text-neutral-500 max-w-xs">
-                Add <code>MZ...-media.zip</code> archive. Products and photos will load automatically!
+                <span className="font-semibold text-indigo-700">Drag & drop</span> or click to upload .zip archive
+              </p>
+              <p className="text-[11px] text-neutral-400">
+                e.g. <code>MZ...-media.zip</code> — photos load automatically!
               </p>
             </div>
           )}

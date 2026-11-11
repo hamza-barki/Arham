@@ -27,6 +27,38 @@ interface ProductDetailViewProps {
   relatedProducts: ProductWithRelations[];
 }
 
+const COLOR_HEX_MAP: Record<string, string> = {
+  pink: '#ec4899',
+  rose: '#f43f5e',
+  orange: '#f97316',
+  red: '#ef4444',
+  maroon: '#800000',
+  burgundy: '#800020',
+  yellow: '#eab308',
+  mustard: '#d97706',
+  green: '#22c55e',
+  emerald: '#059669',
+  olive: '#556b2f',
+  teal: '#14b8a6',
+  blue: '#3b82f6',
+  navy: '#1e3a8a',
+  ferozi: '#06b6d4',
+  cyan: '#06b6d4',
+  purple: '#a855f7',
+  plum: '#701a75',
+  violet: '#7c3aed',
+  black: '#171717',
+  white: '#f9fafb',
+  grey: '#9ca3af',
+  gray: '#9ca3af',
+  brown: '#78350f',
+  beige: '#f5f5dc',
+  gold: '#d4af37',
+  skin: '#e7bc91',
+  peach: '#ffdab9',
+  rust: '#b7410e',
+};
+
 export function ProductDetailView({ product, relatedProducts }: ProductDetailViewProps) {
   const { addItem } = useCart();
   
@@ -243,6 +275,8 @@ export function ProductDetailView({ product, relatedProducts }: ProductDetailVie
 
                   const hasStock = variantForColor ? variantForColor.stock_quantity > 0 : false;
 
+                  const colorHex = COLOR_HEX_MAP[color.toLowerCase().trim()];
+
                   return (
                     <button
                       key={color}
@@ -251,12 +285,18 @@ export function ProductDetailView({ product, relatedProducts }: ProductDetailVie
                       onClick={() => handleSelectColor(color)}
                       className={`px-3.5 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 flex items-center gap-1.5 ${
                         isSelected
-                          ? 'border-emerald-800 bg-emerald-50 text-emerald-950 font-bold ring-2 ring-emerald-800/20'
+                          ? 'border-emerald-800 bg-emerald-50 text-emerald-950 font-bold ring-2 ring-emerald-800/20 shadow-xs'
                           : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400'
                       } ${!hasStock ? 'opacity-35 line-through cursor-not-allowed' : ''}`}
                     >
+                      {colorHex && (
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-neutral-300 shadow-2xs shrink-0"
+                          style={{ backgroundColor: colorHex }}
+                        />
+                      )}
                       {isSelected && <Check className="w-3 h-3 text-emerald-800" />}
-                      {color}
+                      <span>{color}</span>
                     </button>
                   );
                 })}

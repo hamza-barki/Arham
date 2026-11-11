@@ -474,23 +474,28 @@ export async function batchImportMarkazAction(
         }
 
         const variantsList: any[] = [];
-        if (item.sizes) {
-          const sizesArr = item.sizes.split(/[,/]/).map((s) => s.trim()).filter(Boolean);
-          for (const s of sizesArr) {
+        const sizesArr = item.sizes && item.sizes.trim()
+          ? item.sizes.split(/[,/]/).map((s) => s.trim()).filter(Boolean)
+          : ['Free Size'];
+
+        const colorsArr = item.colors && item.colors.trim()
+          ? item.colors.split(/[,/]/).map((c) => c.trim()).filter(Boolean)
+          : ['Standard'];
+
+        for (const s of sizesArr) {
+          for (const c of colorsArr) {
+            // Capitalize each color name (e.g. "pink" -> "Pink", "orange" -> "Orange")
+            const formattedColor = c.charAt(0).toUpperCase() + c.slice(1);
+            const cleanColor = formattedColor.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase();
+            const cleanSize = s.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase();
+            const skuSuffix = `${cleanSize}-${cleanColor}`.replace(/^-|-$/, '') || 'STD';
             variantsList.push({
               size: s,
-              color: item.colors || 'Standard',
+              color: formattedColor,
               stockQuantity: 10,
-              skuSuffix: `${item.supplierSku || 'MKZ'}-${s}`,
+              skuSuffix: `${item.supplierSku || 'MKZ'}-${skuSuffix}`,
             });
           }
-        } else {
-          variantsList.push({
-            size: 'Free Size',
-            color: item.colors || 'Standard',
-            stockQuantity: 10,
-            skuSuffix: item.supplierSku || 'MKZ-STD',
-          });
         }
 
         // ---------------------------------------------------------------

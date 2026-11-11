@@ -233,9 +233,9 @@ export default function CheckoutPage() {
         <p className="text-sm text-neutral-600 mb-6">
           You have no items in your cart to checkout. Please explore our collections first.
         </p>
-        <Link href="/">
-          <Button variant="primary">Return to Shop</Button>
-        </Link>
+        <Button variant="primary" onClick={() => router.push('/')}>
+          Return to Shop
+        </Button>
       </div>
     );
   }

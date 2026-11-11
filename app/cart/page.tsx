@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/hooks/useCart';
 import { formatPKR } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +11,7 @@ import { Trash2, Plus, Minus, ArrowRight, ShoppingBag, ShieldCheck, Truck, Refre
 import cloudinaryLoader from '@/lib/image-loader';
 
 export default function CartPage() {
+  const router = useRouter();
   const {
     items,
     isHydrated,
@@ -48,16 +50,20 @@ export default function CartPage() {
           Discover our latest Eastern pret wear, embroidered luxury lawn, and artisanal leather totes crafted in Pakistan.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-4">
-          <Link href="/category/clothes">
-            <Button variant="primary" size="lg">
-              Explore Clothes
-            </Button>
-          </Link>
-          <Link href="/category/bags">
-            <Button variant="outline" size="lg">
-              Explore Bags
-            </Button>
-          </Link>
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={() => router.push('/category/clothes')}
+          >
+            Explore Clothes
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => router.push('/category/bags')}
+          >
+            Explore Bags
+          </Button>
         </div>
       </div>
     );
@@ -257,12 +263,15 @@ export default function CartPage() {
               </span>
             </div>
 
-            <Link href="/checkout" className="block">
-              <Button variant="primary" size="lg" className="w-full gap-2">
-                Proceed to Checkout
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full gap-2 cursor-pointer shadow-md hover:shadow-lg transition-all"
+              onClick={() => router.push('/checkout')}
+            >
+              Proceed to Checkout
+              <ArrowRight className="w-4 h-4" />
+            </Button>
 
             {/* Trust Assurances */}
             <div className="pt-4 border-t border-neutral-100 space-y-2 text-xs text-neutral-500">

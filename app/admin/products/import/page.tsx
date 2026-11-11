@@ -22,6 +22,8 @@ import {
   ExternalLink,
   X,
   Check,
+  Plus,
+  Palette,
   ImageIcon,
   RefreshCw,
   LogIn,
@@ -64,6 +66,98 @@ interface ImportResult {
   }>;
 }
 
+const POPULAR_COLORS = [
+  'Pink',
+  'Orange',
+  'Red',
+  'Maroon',
+  'Black',
+  'White',
+  'Green',
+  'Emerald',
+  'Blue',
+  'Navy',
+  'Mustard',
+  'Yellow',
+  'Teal',
+  'Ferozi',
+  'Plum',
+  'Purple',
+  'Rust',
+  'Gold',
+  'Beige',
+  'Grey',
+];
+
+const COLOR_HEX_MAP: Record<string, string> = {
+  pink: '#ec4899',
+  rose: '#f43f5e',
+  orange: '#f97316',
+  red: '#ef4444',
+  maroon: '#800000',
+  burgundy: '#800020',
+  yellow: '#eab308',
+  mustard: '#d97706',
+  green: '#22c55e',
+  emerald: '#059669',
+  olive: '#556b2f',
+  teal: '#14b8a6',
+  blue: '#3b82f6',
+  navy: '#1e3a8a',
+  ferozi: '#06b6d4',
+  cyan: '#06b6d4',
+  purple: '#a855f7',
+  plum: '#701a75',
+  violet: '#7c3aed',
+  black: '#171717',
+  white: '#f9fafb',
+  grey: '#9ca3af',
+  gray: '#9ca3af',
+  brown: '#78350f',
+  beige: '#f5f5dc',
+  gold: '#d4af37',
+  skin: '#e7bc91',
+  peach: '#ffdab9',
+  rust: '#b7410e',
+};
+
+function compressImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new (window as any).Image();
+      img.onload = () => {
+        const MAX_DIM = 1000;
+        let width = img.width;
+        let height = img.height;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => resolve(e.target?.result as string);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ImportMarkazPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -80,6 +174,66 @@ export default function ImportMarkazPage() {
   // Edit modal state
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<ParsedProduct | null>(null);
+  const [modalImageUrlInput, setModalImageUrlInput] = useState('');
+  const [isModalUploadingPhoto, setIsModalUploadingPhoto] = useState(false);
+  const modalFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle file upload inside the edit modal
+  const handleModalFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !editForm) return;
+    setIsModalUploadingPhoto(true);
+    try {
+      const newImagesList: string[] = [...(editForm.images || [])];
+      for (let i = 0; i < files.length; i++) {
+        const compressed = await compressImageFile(files[i]);
+        if (compressed) {
+          newImagesList.push(compressed);
+        }
+      }
+      const primary = editForm.imageUrl || newImagesList[0];
+      setEditForm({
+        ...editForm,
+        images: newImagesList,
+        imageUrl: primary,
+      });
+    } catch (err) {
+      console.error('Failed to process uploaded photos:', err);
+      alert('Could not process photo file. Please try a different image.');
+    } finally {
+      setIsModalUploadingPhoto(false);
+      if (modalFileInputRef.current) modalFileInputRef.current.value = '';
+    }
+  };
+
+  // Add photo via direct URL in edit modal
+  const handleModalAddImageUrl = () => {
+    if (!modalImageUrlInput.trim() || !editForm) return;
+    const url = modalImageUrlInput.trim();
+    const newImagesList = [...(editForm.images || []), url];
+    const primary = editForm.imageUrl || url;
+    setEditForm({
+      ...editForm,
+      images: newImagesList,
+      imageUrl: primary,
+    });
+    setModalImageUrlInput('');
+  };
+
+  // Toggle or add color to editForm
+  const handleToggleColor = (colorName: string) => {
+    if (!editForm) return;
+    const currentColors = editForm.colors
+      ? editForm.colors.split(/[,/]/).map((c) => c.trim()).filter(Boolean)
+      : [];
+    const exists = currentColors.some((c) => c.toLowerCase() === colorName.toLowerCase());
+    let next: string[];
+    if (exists) {
+      next = currentColors.filter((c) => c.toLowerCase() !== colorName.toLowerCase());
+    } else {
+      next = [...currentColors, colorName];
+    }
+    setEditForm({ ...editForm, colors: next.join(', ') });
+  };
 
   // Drag & drop state
   const [excelDragging, setExcelDragging] = useState(false);
@@ -500,19 +654,21 @@ export default function ImportMarkazPage() {
       // IMPORTANT: Strip base64 data URLs from the payload before sending to the Server Action.
       // Next.js Server Actions have a ~4MB body limit — base64 images from ZIP files
       // can easily exceed this. The server action handles Cloudinary upload internally.
-      const MAX_INLINE_SIZE = 200_000; // ~200KB base64 safe to pass inline
+      const MAX_INLINE_SIZE = 250_000; // ~250KB base64 safe to pass inline
 
       const payload = parsedRows.map((r) => {
-        // For base64 images: only pass small ones inline; larger ones are skipped
-        // (server will upload to Cloudinary if Cloudinary is configured)
-        const safeImageUrl =
-          r.imageUrl && r.imageUrl.startsWith('data:') && r.imageUrl.length > MAX_INLINE_SIZE
-            ? undefined          // too large — server action will skip upload
-            : r.imageUrl;
-
         const safeImages = (r.images || [])
           .filter((img) => !img.startsWith('data:') || img.length <= MAX_INLINE_SIZE)
-          .slice(0, 5); // max 5 images per product to stay within limits
+          .slice(0, 15); // allow up to 15 images per product for different colors
+
+        let safeImageUrl =
+          r.imageUrl && r.imageUrl.startsWith('data:') && r.imageUrl.length > MAX_INLINE_SIZE
+            ? undefined
+            : r.imageUrl;
+
+        if (!safeImageUrl && safeImages.length > 0) {
+          safeImageUrl = safeImages[0];
+        }
 
         return {
           name: r.name,
@@ -1313,30 +1469,119 @@ export default function ImportMarkazPage() {
                 </div>
               </div>
 
-              {/* Sizes & Colors */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-neutral-800 mb-1">
-                    Sizes (comma separated)
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.sizes}
-                    onChange={(e) => setEditForm({ ...editForm, sizes: e.target.value })}
-                    placeholder="e.g. S, M, L, XL or Free Size"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs"
-                  />
+              {/* Sizes & Multi-Color System */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-neutral-800 mb-1">
+                      Sizes (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.sizes}
+                      onChange={(e) => setEditForm({ ...editForm, sizes: e.target.value })}
+                      placeholder="e.g. S, M, L, XL or Free Size"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                    <div className="text-[10px] text-neutral-400 mt-1">Leave empty for Free Size / Unstitched</div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold text-neutral-800">
+                        Colors (Multi-Color System)
+                      </label>
+                      <span className="text-[10px] font-semibold text-emerald-800">
+                        {editForm.colors ? editForm.colors.split(/[,/]/).filter((c) => c.trim()).length : 0} Colors active
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={editForm.colors}
+                      onChange={(e) => setEditForm({ ...editForm, colors: e.target.value })}
+                      placeholder="e.g. Pink, Orange, Maroon"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                    <div className="text-[10px] text-neutral-400 mt-1">
+                      Comma separated. Each color becomes an option customer can select on store.
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block font-bold text-neutral-800 mb-1">Colors</label>
-                  <input
-                    type="text"
-                    value={editForm.colors}
-                    onChange={(e) => setEditForm({ ...editForm, colors: e.target.value })}
-                    placeholder="e.g. Mustard Yellow, Maroon"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs"
-                  />
+                {/* Interactive Multi-Color Badges & Quick-Add Presets */}
+                <div className="p-3 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-2">
+                  {/* Active selected color tags */}
+                  {editForm.colors && editForm.colors.split(/[,/]/).filter((c) => c.trim()).length > 0 && (
+                    <div>
+                      <span className="text-[11px] font-bold text-neutral-700 block mb-1.5">
+                        Selected Colors (Customer will select between these):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {editForm.colors.split(/[,/]/).map((c) => c.trim()).filter(Boolean).map((color) => {
+                          const hex = COLOR_HEX_MAP[color.toLowerCase()];
+                          return (
+                            <span
+                              key={color}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-neutral-300 text-xs font-bold text-neutral-800 shadow-2xs"
+                            >
+                              {hex && (
+                                <span
+                                  className="w-3 h-3 rounded-full border border-neutral-300 shrink-0"
+                                  style={{ backgroundColor: hex }}
+                                />
+                              )}
+                              <span>{color}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleColor(color)}
+                                className="text-neutral-400 hover:text-rose-600 transition ml-0.5 cursor-pointer"
+                                title="Remove color"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quick-add popular colors */}
+                  <div>
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">
+                      Quick Add Popular Colors:
+                    </span>
+                    <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+                      {POPULAR_COLORS.map((col) => {
+                        const isSelected = editForm.colors
+                          ?.split(/[,/]/)
+                          .map((c) => c.trim().toLowerCase())
+                          .includes(col.toLowerCase());
+                        const hex = COLOR_HEX_MAP[col.toLowerCase()];
+                        return (
+                          <button
+                            key={col}
+                            type="button"
+                            onClick={() => handleToggleColor(col)}
+                            className={`px-2 py-0.5 rounded-lg text-[11px] font-medium border flex items-center gap-1 transition cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-100 border-emerald-400 text-emerald-950 font-bold'
+                                : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400'
+                            }`}
+                          >
+                            {hex && (
+                              <span
+                                className="w-2.5 h-2.5 rounded-full border border-neutral-300 shrink-0"
+                                style={{ backgroundColor: hex }}
+                              />
+                            )}
+                            <span>{col}</span>
+                            {isSelected ? <Check className="w-2.5 h-2.5 text-emerald-800" /> : <Plus className="w-2.5 h-2.5 opacity-60" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1352,29 +1597,88 @@ export default function ImportMarkazPage() {
                 />
               </div>
 
-              {/* Photos Gallery from ZIP */}
-              {editForm.images && editForm.images.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block font-bold text-neutral-800">
-                      Extracted Photos ({editForm.images.length})
+              {/* Product Photos Section */}
+              <div className="space-y-3 pt-2 border-t border-neutral-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block font-bold text-neutral-900 text-sm">
+                      Product Photos ({editForm.images?.length || 0})
                     </label>
-                    <span className="text-[11px] text-neutral-500 font-medium">
-                      Click to set primary • Hover & click <Trash2 className="w-3 h-3 inline text-rose-600" /> to remove
-                    </span>
+                    <p className="text-[11px] text-neutral-500">
+                      Add photos for each color • Click any photo to set as Primary (Cover Photo)
+                    </p>
                   </div>
-                  <div className="flex flex-wrap gap-2.5">
+                  {/* File Upload Button */}
+                  <div>
+                    <input
+                      ref={modalFileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => handleModalFileUpload(e.target.files)}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      disabled={isModalUploadingPhoto}
+                      onClick={() => modalFileInputRef.current?.click()}
+                      className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition disabled:opacity-50 cursor-pointer"
+                    >
+                      {isModalUploadingPhoto ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Processing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>Upload Photos</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Add Image by URL bar */}
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={modalImageUrlInput}
+                    onChange={(e) => setModalImageUrlInput(e.target.value)}
+                    placeholder="Or paste photo URL (https://...)"
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-neutral-300 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-700"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleModalAddImageUrl();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleModalAddImageUrl}
+                    disabled={!modalImageUrlInput.trim()}
+                    className="px-3 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-bold transition disabled:opacity-40 cursor-pointer"
+                  >
+                    + Add URL
+                  </button>
+                </div>
+
+                {/* Photo Grid / Gallery */}
+                {editForm.images && editForm.images.length > 0 ? (
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5 p-3 bg-neutral-50 rounded-2xl border border-neutral-200 max-h-56 overflow-y-auto">
                     {editForm.images.map((imgUrl, i) => {
                       const isPrimary = editForm.imageUrl === imgUrl;
                       return (
                         <div
                           key={i}
                           onClick={() => setEditForm({ ...editForm, imageUrl: imgUrl })}
-                          className={`group relative w-16 h-16 rounded-xl overflow-hidden border-2 cursor-pointer transition ${
+                          className={`group relative aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition ${
                             isPrimary
-                              ? 'border-emerald-600 ring-2 ring-emerald-500/50 scale-105'
-                              : 'border-neutral-200 hover:border-neutral-400'
+                              ? 'border-emerald-600 ring-2 ring-emerald-500/50 shadow-sm scale-[1.02]'
+                              : 'border-neutral-200 hover:border-neutral-400 bg-white'
                           }`}
+                          title="Click to set as primary cover photo"
                         >
                           <Image
                             src={imgUrl}
@@ -1405,18 +1709,35 @@ export default function ImportMarkazPage() {
                             <Trash2 className="w-3 h-3" />
                           </button>
 
-                          {/* Primary Checkmark Indicator */}
-                          {isPrimary && (
-                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          {/* Primary Cover Badge */}
+                          {isPrimary ? (
+                            <div className="absolute bottom-1 inset-x-1 bg-emerald-700 text-white text-[9px] font-bold py-0.5 rounded text-center shadow-xs">
+                              Cover Photo
+                            </div>
+                          ) : (
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-neutral-900/50 text-white text-[9px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                              {i + 1}
                             </div>
                           )}
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div
+                    onClick={() => modalFileInputRef.current?.click()}
+                    className="p-6 border-2 border-dashed border-neutral-300 rounded-2xl text-center cursor-pointer hover:border-emerald-600 hover:bg-emerald-50/30 transition group"
+                  >
+                    <ImageIcon className="w-8 h-8 text-neutral-400 group-hover:text-emerald-700 mx-auto mb-1 transition" />
+                    <p className="text-xs font-bold text-neutral-700 group-hover:text-emerald-900">
+                      No photos added yet
+                    </p>
+                    <p className="text-[11px] text-neutral-400 mt-0.5">
+                      Click to upload photos for different colors from your computer
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Modal Actions */}

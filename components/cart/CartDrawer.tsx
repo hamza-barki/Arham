@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Truck } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { formatPKR } from '@/lib/utils';
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import cloudinaryLoader from '@/lib/image-loader';
 
 export function CartDrawer() {
+  const router = useRouter();
   const {
     items,
     isCartOpen,
@@ -91,16 +93,26 @@ export function CartDrawer() {
                   Explore our luxury Lawn, Pret clothes, and handcrafted Leather bags.
                 </p>
                 <div className="flex flex-col gap-2 w-full max-w-xs">
-                  <Link href="/categories/clothes" onClick={closeCart}>
-                    <Button variant="primary" className="w-full">
-                      Explore Clothes
-                    </Button>
-                  </Link>
-                  <Link href="/categories/bags" onClick={closeCart}>
-                    <Button variant="outline" className="w-full">
-                      Explore Bags
-                    </Button>
-                  </Link>
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={() => {
+                      closeCart();
+                      router.push('/categories/clothes');
+                    }}
+                  >
+                    Explore Clothes
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      closeCart();
+                      router.push('/categories/bags');
+                    }}
+                  >
+                    Explore Bags
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -212,12 +224,29 @@ export function CartDrawer() {
                 <strong>Cash on Delivery (COD)</strong> available at checkout
               </div>
 
-              <Link href="/cart" onClick={closeCart} className="block">
-                <Button variant="primary" size="lg" className="w-full gap-2">
-                  Proceed to Checkout
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full gap-2 cursor-pointer shadow-md hover:shadow-lg transition-all"
+                onClick={() => {
+                  closeCart();
+                  router.push('/checkout');
+                }}
+              >
+                Proceed to Checkout
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  closeCart();
+                  router.push('/cart');
+                }}
+                className="w-full text-center text-xs font-semibold text-neutral-600 hover:text-emerald-900 transition-colors py-1 cursor-pointer"
+              >
+                View Shopping Bag
+              </button>
             </div>
           )}
         </div>

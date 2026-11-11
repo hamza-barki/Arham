@@ -98,7 +98,7 @@ export function CartDrawer() {
                     className="w-full"
                     onClick={() => {
                       closeCart();
-                      router.push('/categories/clothes');
+                      router.push('/category/clothes');
                     }}
                   >
                     Explore Clothes
@@ -108,7 +108,7 @@ export function CartDrawer() {
                     className="w-full"
                     onClick={() => {
                       closeCart();
-                      router.push('/categories/bags');
+                      router.push('/category/bags');
                     }}
                   >
                     Explore Bags
@@ -135,7 +135,7 @@ export function CartDrawer() {
                     <div>
                       <div className="flex items-start justify-between gap-2">
                         <Link
-                          href={`/products/${item.slug}`}
+                          href={`/product/${item.slug}`}
                           onClick={closeCart}
                           className="font-medium text-sm text-neutral-900 hover:text-emerald-900 line-clamp-1"
                         >

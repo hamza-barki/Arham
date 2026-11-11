@@ -3,7 +3,7 @@ import { ProductGridSkeleton } from '@/components/products/LoadingSkeleton';
 
 export default function CategoryLoading() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-pulse">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-shimmer">
       {/* Category banner skeleton */}
       <div className="h-40 sm:h-56 bg-neutral-200 rounded-3xl mb-8 w-full" />
 

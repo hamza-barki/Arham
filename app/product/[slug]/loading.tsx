@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function ProductLoading() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 animate-pulse">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 animate-shimmer">
       {/* Breadcrumb skeleton */}
       <div className="h-4 bg-neutral-200 rounded w-48 mb-8" />
 

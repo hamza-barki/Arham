@@ -6,9 +6,7 @@ import { INITIAL_CATEGORIES, INITIAL_PRODUCTS, BRAND_NAME } from '@/lib/constant
 import { Category, ProductWithRelations } from '@/types';
 import { CategoryPageView } from '@/components/category/CategoryPageView';
 
-// Force dynamic SSR so freshly imported / updated products show immediately without stale cache
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface CategoryPageProps {
   params: {

@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
@@ -12,7 +11,6 @@ import { Footer } from '@/components/layout/Footer';
 import { Analytics } from '@/components/analytics/Analytics';
 import { WhatsAppFloatingButton } from '@/components/ui/WhatsAppButton';
 import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
-import { NavigationProgress } from '@/components/ui/NavigationProgress';
 import { BRAND_NAME } from '@/lib/constants';
 
 const geistSans = localFont({
@@ -87,9 +85,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-neutral-900 flex flex-col min-h-screen`}
       >
-        <Suspense fallback={null}>
-          <NavigationProgress />
-        </Suspense>
         <AuthProvider>
           <CartProvider>
             <AnnouncementBar />

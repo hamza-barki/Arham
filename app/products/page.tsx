@@ -15,8 +15,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 async function getCatalogData() {
   if (!isSupabaseConfigured()) {

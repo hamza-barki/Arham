@@ -8,7 +8,7 @@ import { Mail, Lock, Eye, EyeOff, LogIn, ArrowRight, AlertCircle, Sparkles } fro
 import { useAuth } from '@/hooks/useAuth';
 import { BRAND_NAME } from '@/lib/constants';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams?.get('redirect') || '/account';
@@ -225,5 +225,13 @@ export default function LoginPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4" />}>
+      <LoginForm />
+    </React.Suspense>
   );
 }

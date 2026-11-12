@@ -6,8 +6,7 @@ import { INITIAL_PRODUCTS, BRAND_NAME } from '@/lib/constants';
 import { ProductWithRelations } from '@/types';
 import { ProductDetailView } from '@/components/products/ProductDetailView';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface ProductPageProps {
   params: {

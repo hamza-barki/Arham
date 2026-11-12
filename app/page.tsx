@@ -17,8 +17,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 async function getTrendingProducts(): Promise<ProductWithRelations[]> {
   if (!isSupabaseConfigured()) {
@@ -26,7 +25,7 @@ async function getTrendingProducts(): Promise<ProductWithRelations[]> {
   }
 
   try {
-    const { data, error } = await supabase
+    const fetchPromise = supabase
       .from('products')
       .select(`
         *,
@@ -37,6 +36,12 @@ async function getTrendingProducts(): Promise<ProductWithRelations[]> {
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(8);
+
+    const timeoutPromise = new Promise<{ data: null; error: any }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: new Error('Timeout') }), 2500)
+    );
+
+    const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
     if (error || !data || data.length === 0) {
       return INITIAL_PRODUCTS;

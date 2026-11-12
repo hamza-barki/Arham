@@ -8,7 +8,7 @@ import { BellOff, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { processUnsubscribe, UnsubscribeResult } from '@/app/actions/unsubscribe';
 import { BRAND_NAME } from '@/lib/constants';
 
-export default function UnsubscribePage() {
+function UnsubscribeForm() {
   const searchParams = useSearchParams();
   const initialTarget = searchParams?.get('email') || searchParams?.get('phone') || '';
 
@@ -135,5 +135,13 @@ export default function UnsubscribePage() {
 
       </div>
     </div>
+  );
+}
+
+export default function UnsubscribePage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4" />}>
+      <UnsubscribeForm />
+    </React.Suspense>
   );
 }

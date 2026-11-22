@@ -42,8 +42,8 @@ export function WhatsAppFloatingButton({ phoneNumber }: WhatsAppFloatingButtonPr
   const waNumber = cleanDigits.startsWith('92')
     ? cleanDigits
     : cleanDigits.startsWith('0')
-    ? '92' + cleanDigits.slice(1)
-    : '92' + cleanDigits;
+      ? '92' + cleanDigits.slice(1)
+      : '92' + cleanDigits;
 
   // Build contextual prefilled message
   let prefilledMessage = `Assalam-o-Alaikum! I have an inquiry about ${BRAND_NAME} products.`;
@@ -60,6 +60,8 @@ export function WhatsAppFloatingButton({ phoneNumber }: WhatsAppFloatingButtonPr
   } else if (pathname.includes('/order-confirmation/')) {
     const orderId = pathname.split('/').pop() || '';
     prefilledMessage = `Assalam-o-Alaikum! I just placed an order (Ref: ${orderId}) and would like to confirm the details.`;
+  } else if (pathname === '/orders/track') {
+    prefilledMessage = `Assalam-o-Alaikum! I would like to track my order consignment with your support team.`;
   } else if (pathname === '/cart' || pathname === '/checkout') {
     prefilledMessage = `Assalam-o-Alaikum! I need assistance with completing my order on ${BRAND_NAME}.`;
   }

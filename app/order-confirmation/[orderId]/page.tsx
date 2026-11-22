@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { BRAND_NAME } from '@/lib/constants';
+import { STORE_CONFIG } from '@/lib/config';
 
 export default function OrderConfirmationPage() {
   const router = useRouter();
@@ -246,19 +247,25 @@ export default function OrderConfirmationPage() {
             </Button>
           </Link>
 
-          <a
-            href={`https://wa.me/923001234567?text=${encodeURIComponent(
-              `Assalam o Alaikum, I have a question about my Order ${orderNumber}.`
-            )}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-auto flex-1"
-          >
-            <Button variant="outline" size="lg" className="w-full gap-2 border-emerald-800 text-emerald-900 hover:bg-emerald-50">
-              <PhoneCall className="w-4 h-4 text-emerald-700" />
-              WhatsApp Support
-            </Button>
-          </a>
+          {(() => {
+            const cleanPhone = STORE_CONFIG.supportWhatsApp.replace(/\D/g, '');
+            const waNumber = cleanPhone.startsWith('92') ? cleanPhone : cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : '92' + cleanPhone;
+            return (
+              <a
+                href={`https://wa.me/${waNumber}?text=${encodeURIComponent(
+                  `Assalam o Alaikum, I have a question about my Order ${orderNumber}.`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto flex-1"
+              >
+                <Button variant="outline" size="lg" className="w-full gap-2 border-emerald-800 text-emerald-900 hover:bg-emerald-50">
+                  <PhoneCall className="w-4 h-4 text-emerald-700" />
+                  WhatsApp Support
+                </Button>
+              </a>
+            );
+          })()}
         </div>
       </div>
     </div>

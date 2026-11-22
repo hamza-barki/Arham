@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { RefreshCw, CheckCircle2, AlertTriangle, MessageCircle, HelpCircle } from 'lucide-react';
 import { BRAND_NAME } from '@/lib/constants';
+import { STORE_CONFIG } from '@/lib/config';
 
 export const metadata: Metadata = {
   title: `Exchange & Return Policy | ${BRAND_NAME}`,
@@ -41,15 +42,21 @@ export default function ExchangePolicyPage() {
               Exchange your garment for a different size or report transit defects within 7 days of delivery.
             </p>
           </div>
-          <a
-            href="https://wa.me/923001234567?text=Hello%20I%20would%20like%20to%20request%20an%20exchange%20for%20my%20order."
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl text-xs transition-colors shrink-0 flex items-center gap-2 shadow-md"
-          >
-            <MessageCircle className="w-4 h-4" />
-            Initiate on WhatsApp
-          </a>
+          {(() => {
+            const cleanPhone = STORE_CONFIG.supportWhatsApp.replace(/\D/g, '');
+            const waNumber = cleanPhone.startsWith('92') ? cleanPhone : cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : '92' + cleanPhone;
+            return (
+              <a
+                href={`https://wa.me/${waNumber}?text=Hello%20I%20would%20like%20to%20request%20an%20exchange%20for%20my%20order.`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl text-xs transition-colors shrink-0 flex items-center gap-2 shadow-md"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Initiate on WhatsApp
+              </a>
+            );
+          })()}
         </div>
 
         {/* Policy Content */}

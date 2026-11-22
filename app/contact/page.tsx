@@ -93,15 +93,21 @@ export default function ContactPage() {
               <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed mb-6">
                 Our support specialists are online Monday through Saturday to help with live video consultations, size checks, and parcel updates.
               </p>
-              <a
-                href={`https://wa.me/${STORE_CONFIG.supportWhatsApp.replace(/\D/g, '')}?text=Hello%20I%20have%20an%20inquiry%20regarding%20an%20order.`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl text-sm transition-colors shadow-lg"
-              >
-                <MessageCircle className="w-5 h-5" />
-                Chat on WhatsApp Helpline
-              </a>
+              {(() => {
+                const cleanPhone = STORE_CONFIG.supportWhatsApp.replace(/\D/g, '');
+                const waNumber = cleanPhone.startsWith('92') ? cleanPhone : cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : '92' + cleanPhone;
+                return (
+                  <a
+                    href={`https://wa.me/${waNumber}?text=Hello%20I%20have%20an%20inquiry%20regarding%20an%20order.`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl text-sm transition-colors shadow-lg"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    Chat on WhatsApp Helpline
+                  </a>
+                );
+              })()}
             </div>
 
             {/* Studio & Office Locations */}

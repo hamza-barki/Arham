@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { ProductWithRelations, ProductVariant } from '@/types';
 import { formatPKR } from '@/lib/utils';
+import { STORE_CONFIG } from '@/lib/config';
 import { ImageGallery } from './ImageGallery';
 import { SizeChartModal } from './SizeChartModal';
 import { ProductCard } from './ProductCard';
@@ -393,15 +394,22 @@ export function ProductDetailView({ product, relatedProducts }: ProductDetailVie
 
             <div className="pt-2 border-t border-neutral-200 flex items-center justify-between text-[11px] text-neutral-500">
               <span>Need help ordering?</span>
-              <a
-                href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '923000000000'}?text=Assalam%20o%20Alaikum,%20I%20am%20interested%20in%20${encodeURIComponent(product.name)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-emerald-800 font-bold hover:underline flex items-center gap-1"
-              >
-                <PhoneCall className="w-3 h-3 text-emerald-700" />
-                Inquire on WhatsApp
-              </a>
+              {(() => {
+                const rawWa = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || STORE_CONFIG.supportWhatsApp;
+                const digits = rawWa.replace(/\D/g, '');
+                const waNumber = digits.startsWith('92') ? digits : digits.startsWith('0') ? '92' + digits.slice(1) : '92' + digits;
+                return (
+                  <a
+                    href={`https://wa.me/${waNumber}?text=Assalam%20o%20Alaikum,%20I%20am%20interested%20in%20${encodeURIComponent(product.name)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-800 font-bold hover:underline flex items-center gap-1"
+                  >
+                    <PhoneCall className="w-3 h-3 text-emerald-700" />
+                    Inquire on WhatsApp
+                  </a>
+                );
+              })()}
             </div>
           </div>
         </div>

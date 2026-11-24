@@ -97,6 +97,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchProfile(session.user.id);
       }
       setIsLoading(false);
+    }).catch((err) => {
+      console.warn('Auth session check failed:', err);
+      setIsLoading(false);
     });
 
     // 2. Auth state subscription

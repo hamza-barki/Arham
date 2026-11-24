@@ -151,8 +151,8 @@ export function Navbar() {
           {/* Right Action Icons */}
           <div className="flex items-center gap-2 sm:gap-4">
             
-            {/* Admin Console Shortcut (visible only to signed-in staff/admin) */}
-            {mounted && isStaff && (
+            {/* Admin Console Shortcut (visible to signed-in staff/admin or in demo mode) */}
+            {mounted && (isStaff || process.env.NEXT_PUBLIC_DEMO_MODE === 'true') && (
               <Link
                 href="/admin"
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold bg-neutral-900 text-amber-300 hover:bg-neutral-800 rounded-xl transition shadow-xs border border-neutral-700"
@@ -230,7 +230,7 @@ export function Navbar() {
 
           {/* Mobile Account & Admin Links */}
           <div className="pt-3 border-t border-neutral-100 space-y-2">
-            {mounted && isStaff && (
+            {mounted && (isStaff || process.env.NEXT_PUBLIC_DEMO_MODE === 'true') && (
               <Link
                 href="/admin"
                 onClick={() => setMobileMenuOpen(false)}

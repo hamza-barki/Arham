@@ -26,11 +26,13 @@ export async function middleware(request: NextRequest) {
 
     const isDemoMode = process.env.DEMO_MODE === 'true' && process.env.NODE_ENV !== 'production';
 
+    // Allow immediate access in development / demo mode
+    if (isDemoMode) {
+      return response;
+    }
+
     // Fail-closed: In production or when DEMO_MODE != true, missing configuration MUST stop with error
     if (!isConfigured) {
-      if (isDemoMode) {
-        return response;
-      }
       return isApi
         ? NextResponse.json({ error: 'Service Unavailable: System configuration missing in production.' }, { status: 503 })
         : new NextResponse('Service Unavailable: System configuration missing in production.', { status: 503 });

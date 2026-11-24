@@ -11,6 +11,9 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Quick check helper
 export const isSupabaseConfigured = (): boolean => {
+  if (process.env.DEMO_MODE === 'true' || process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+    return false;
+  }
   return Boolean(
     supabaseUrl &&
     supabaseAnonKey &&

@@ -43,7 +43,7 @@ const ROLE_LEVELS: Record<UserRole, number> = {
 export async function getCurrentAdminUser(): Promise<AdminUserSession | null> {
   const isDemo = process.env.DEMO_MODE === 'true' && process.env.NODE_ENV !== 'production';
 
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || isDemo) {
     // Fail-open for unconfigured/demo environments so product imports & operations work
     return {
       userId: 'demo-admin-id',

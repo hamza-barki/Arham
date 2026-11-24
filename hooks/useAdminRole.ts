@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { UserRole } from '@/types/database';
 
 export interface AdminRoleState {
@@ -53,6 +53,14 @@ export function useAdminRole(): AdminRoleState {
     let isMounted = true;
 
     async function fetchUserRole() {
+      if (!isSupabaseConfigured() || process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+        if (isMounted) {
+          setRole('super_admin');
+          setIsLoading(false);
+        }
+        return;
+      }
+
       if (!user) {
         if (isMounted) {
           setRole('customer');
